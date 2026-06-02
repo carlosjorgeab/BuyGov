@@ -1,0 +1,145 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import { NextRequest, NextResponse } from "next/server";
+
+// Standard safe initialization matching AI coder guidelines
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      "User-Agent": "aistudio-build",
+    },
+  },
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const { action, text, tenderData, certsData } = await req.json();
+
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { error: "A chave API do Gemini não está configurada nos segredos (Secrets)." },
+        { status: 500 }
+      );
+    }
+
+    if (action === "parse_tender") {
+      const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada.
+Texto do Edital:
+"${text}"
+
+Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
+{
+  "modalidade": "Pregão Eletrônico, Concorrência ou Tomada de Preços",
+  "objeto": "Resumo claro e conciso de qual o objeto da licitação",
+  "orgao": "Nome do órgão licitante (ex: Ministério da Saúde, Prefeitura de SP)",
+  "valor_estimado": 1250000.00,  // Adicione apenas o número ou nulo se não houver
+  "prazo_proposta": "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm (estime com base no texto em 2026)",
+  "prazo_abertura": "data e hora da sessão pública no formato YYYY-MM-DD HH:mm (estime com base no texto em 2026)",
+  "documentos_obrigatorios": ["Documento 1", "Documento 2", "Certidão X"], // de habilitação
+  "exigencias_atestados": "Frase resumida das exigências específicas de atestados de capacidade técnica do edital"
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "Você é um especialista em licitações públicas brasileiras e formatação de dados estruturados em JSON.",
+        },
+      });
+
+      const resultText = response.text || "{}";
+      return NextResponse.json(JSON.parse(resultText));
+    }
+
+    if (action === "parse_certificate") {
+      const prompt = `Analise o texto extraído do Atestado de Capacidade Técnica abaixo e retorne um objeto JSON contendo informações extraídas de forma estruturada, com itens linha a linha detalhados.
+Texto do Atestado:
+"${text}"
+
+Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
+{
+  "nome_atestado": "Título identificador curto do atestado",
+  "orgao_emissor": "Empresa ou Órgão Público que assinou o atestado",
+  "data_emissao": "Data de emissão no formato YYYY-MM-DD",
+  "observacoes": "Resumo rápido de relevância",
+  "itens": [
+    {
+      "item_numero": 1,
+      "descricao": "Descrição clara dos serviços executados (ex: fornecimento de x monitores)",
+      "quantidade": 150.00, // número
+      "unidade": "un, m2, h, km, etc",
+      "relevancia_tecnica": "Alta, Média ou Baixa"
+    }
+  ]
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "Você é um especialista em análise de atestados técnicos de acervo e engenharia ou prestação de serviços com formatação JSON.",
+        },
+      });
+
+      const resultText = response.text || "{}";
+      return NextResponse.json(JSON.parse(resultText));
+    }
+
+    if (action === "analyze_compatibility") {
+      // Analyze compatibility of tender against available company certificates
+      const prompt = `Você é uma Inteligência Artificial especialista em qualificação técnica para licitações.
+Faça uma análise cruzada e comparativa detalhada e profissional se a empresa tem condições de participar do edital abaixo, baseado em seus Atestados Técnicos cadastrados.
+
+DADOS DO EDITAL:
+- Órgão: ${tenderData.orgao}
+- Objeto: ${tenderData.objeto}
+- Valor Estimado: R$ ${tenderData.valor_estimado?.toLocaleString("pt-BR")}
+- Exigências de Atestados: ${tenderData.exigencias_atestados}
+- Documentos Técnicos Requeridos: ${tenderData.documentos_obrigatorios?.join(", ")}
+
+ATESTADOS TÉCNICOS DISPONÍVEIS NA EMPRESA:
+${JSON.stringify(certsData, null, 2)}
+
+Analise se os itens executados listados nos atestados atendem quantitativamente ou qualitativamente às exigências descritas no Edital. Calcule um score matemático estimado de aderência técnica (de 0 a 100).
+
+Retorne rigorosamente no formato JSON com os seguintes campos:
+{
+  "score_aderencia": 85, // número de 0 a 100 indicando compatibilidade técnica
+  "elegibilidade": "Altamente Recomendável" | "Possível com Riscos" | "Não Elegível",
+  "justificativa": "Texto explicativo detalhado sobre os atestados apresentados que cobrem e fundamentam a participação",
+  "pontos_fortes": ["Explicar qual atestado e item comprova satisfatoriamente cada requisito"],
+  "pontos_atencao": ["Quais requisitos do edital não têm comprovação exata ou representam gap de quantidade/exigência"],
+  "checklist_verificação": [
+    {
+      "item": "Requisito X",
+      "status": "Atendido" | "Parcialmente Atendido" | "Não Atendido",
+      "detalhe": "Comprovado via Atestado Y"
+    }
+  ],
+  "recomendacao_final": "Parecer consultivo final de ação para a diretoria comercial."
+}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          systemInstruction: "Você é um consultor sênior de licitações públicas com conhecimento analítico avançado de editais e aptidões jurídicas/técnicas.",
+        },
+      });
+
+      const resultText = response.text || "{}";
+      return NextResponse.json(JSON.parse(resultText));
+    }
+
+    return NextResponse.json({ error: "Ação inválida ou não especificada." }, { status: 400 });
+  } catch (err: any) {
+    console.error("Gemini API Error details:", err);
+    return NextResponse.json(
+      { error: `Erro ao processar pela Inteligência Artificial do Gemini: ${err.message}` },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "ProProcure - Controle de Licitações",
+  "description": "Plataforma profissional de monitoramento, scanner de editais e controle de licitações integrando análise inteligente de atestados técnicos por IA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
