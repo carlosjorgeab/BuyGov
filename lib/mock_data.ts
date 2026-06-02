@@ -95,6 +95,12 @@ export const INITIAL_USER: PerfilUsuario = {
   perfil: 'Administrador'
 };
 
+export const INITIAL_USERS: PerfilUsuario[] = [
+  { email: 'carlos.mendes@empresa.com.br', nome: 'Carlos Mendes', perfil: 'Administrador' },
+  { email: 'analista.licita@empresa.com.br', nome: 'Ana Silva', perfil: 'Analista' },
+  { email: 'diretor.licita@empresa.com.br', nome: 'Roberto Costa', perfil: 'Diretor' }
+];
+
 export const INITIAL_BIDS = [
   {
     id: 'e1111111',

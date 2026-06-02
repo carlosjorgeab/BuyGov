@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Building,
@@ -47,8 +48,10 @@ import {
   AtestadoTecnico,
   AtestadoItem,
   DocumentoBase,
+  PerfilUsuario,
   INITIAL_COMPANIES,
   INITIAL_USER,
+  INITIAL_USERS,
   INITIAL_BIDS,
   INITIAL_CERTIFICATES,
   INITIAL_DOCUMENTS,
@@ -71,13 +74,14 @@ export default function Home() {
   const [activeCompanyKey, setActiveCompanyKey] = useState<string>('LICITATECH');
 
   // Active User and Login Session Checks
-  const [currentUser, setCurrentUser] = useState(INITIAL_USER);
+  const [usuarios, setUsuarios] = useState<PerfilUsuario[]>([]);
+  const [currentUser, setCurrentUser] = useState<PerfilUsuario>(INITIAL_USER);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [sessionToken, setSessionToken] = useState<string>('');
   const [multiSessionAlert, setMultiSessionAlert] = useState(false);
 
   // Styling Customization
-  const [primaryColor, setPrimaryColor] = useState('#091426');
+  const [primaryColor, setPrimaryColor] = useState('#059669'); // Emerald tone mimicking Democracia Digital
   const [borderColor, setBorderColor] = useState('#eceef0');
 
   // Timeout settings
@@ -85,7 +89,7 @@ export default function Home() {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
 
   // Active Nav Tab state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'ajustes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'ajustes'>('dashboard');
 
   // Supabase connection setting state
   const [supabaseUrl, setSupabaseUrl] = useState('');
@@ -115,6 +119,12 @@ export default function Home() {
   // Calendar Selection State
   const [selectedDateStr, setSelectedDateStr] = useState<string>('2026-06-03');
   const [calendarMonth, setCalendarMonth] = useState('Junho 2026');
+
+  // User CRUD states
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'Administrador' | 'Analista' | 'Diretor'>('Analista');
 
   // Simple CRUD controllers
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
@@ -189,6 +199,13 @@ export default function Home() {
         localStorage.setItem('proprocure_documentos', JSON.stringify(INITIAL_DOCUMENTS));
       }
 
+      const storedUsers = localStorage.getItem('proprocure_usuarios');
+      if (storedUsers) setUsuarios(JSON.parse(storedUsers));
+      else {
+        setUsuarios(INITIAL_USERS);
+        localStorage.setItem('proprocure_usuarios', JSON.stringify(INITIAL_USERS));
+      }
+
       const storedHistory = localStorage.getItem('proprocure_scanned_history');
       if (storedHistory) setLastScannedTenders(JSON.parse(storedHistory));
 
@@ -226,6 +243,11 @@ export default function Home() {
     if (!stateLoaded) return;
     localStorage.setItem('proprocure_documentos', JSON.stringify(documentos));
   }, [documentos, stateLoaded]);
+
+  useEffect(() => {
+    if (!stateLoaded) return;
+    localStorage.setItem('proprocure_usuarios', JSON.stringify(usuarios));
+  }, [usuarios, stateLoaded]);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -306,6 +328,15 @@ export default function Home() {
   // Re-login trigger
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const email = (e.currentTarget.querySelector('input[type="email"]') as HTMLInputElement).value;
+    const user = usuarios.find(u => u.email === email);
+    
+    if (!user) {
+      alert('Usuário não encontrado. Solicite acesso ao Administrador.');
+      return;
+    }
+    
+    setCurrentUser(user);
     setIsLoggedIn(true);
     setMultiSessionAlert(false);
     setSecondsRemaining(timeoutMinutes * 60);
@@ -317,6 +348,24 @@ export default function Home() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+  };
+
+  const handleAddUser = () => {
+    if (!newUserEmail || !newUserName) {
+      alert("Por favor preencha todos os campos do usuário.");
+      return;
+    }
+    const isEditing = usuarios.some(u => u.email === newUserEmail);
+    if (isEditing) {
+      alert("Este e-mail já está cadastrado.");
+      return;
+    }
+    const nextList = [{ email: newUserEmail, nome: newUserName, perfil: newUserRole }, ...usuarios];
+    setUsuarios(nextList);
+    setNewUserEmail('');
+    setNewUserName('');
+    setNewUserRole('Analista');
+    setShowAddUserModal(false);
   };
 
   // --- CRUD DISPATCH METHODS ---
@@ -619,75 +668,63 @@ export default function Home() {
   // LOGIN PAGE OVERLAY (REQUIREMENT 4.e)
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4">
-        <div className="w-full max-w-md bg-slate-800 rounded-xl p-8 shadow-2xl border border-slate-700 animate-fade-in">
+      <div className="min-h-screen flex flex-col justify-center items-center p-4 transition-colors" style={{ backgroundColor: primaryColor }}>
+        <div className="w-full max-w-md bg-white rounded-xl p-8 shadow-2xl animate-fade-in">
           <div className="flex justify-center mb-6">
-            <div className="p-4 bg-red-600 rounded-full text-white">
-              <Gavel className="w-8 h-8" />
+            <div className="w-16 h-16 relative">
+              <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain" />
             </div>
           </div>
 
-          <h2 className="text-2xl font-bold text-center text-white font-sans tracking-tight">
-            Controle de Licitações
+          <h2 className="text-2xl font-bold text-center text-emerald-950 font-sans tracking-tight">
+            BuyGov
           </h2>
-          <p className="text-slate-400 text-sm text-center mt-1">
-            Plataforma Corporativa PT - Multi-Empresa
+          <p className="text-emerald-700 text-sm text-center mt-1">
+            Plataforma Corporativa de Licitações
           </p>
 
           {multiSessionAlert && (
-            <div className="mt-4 p-3 bg-red-500/15 border border-red-500 rounded-lg text-red-400 text-xs flex gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
               <div>
                 <p className="font-bold">Desconexão de Sessão Única Ativa</p>
-                <p>Nossa segurança de login detectou que esta conta foi aberta em outra aba/dispositivo. Esta sessão foi finalizada.</p>
+                <p>Nossa segurança detectou que esta conta foi aberta em outra aba/dispositivo. Esta sessão foi finalizada.</p>
               </div>
             </div>
           )}
 
           <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase">E-mail Corporativo</label>
+              <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">E-mail Corporativo</label>
               <input
                 type="email"
                 required
-                className="w-full mt-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-red-500"
+                className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                 placeholder="exemplo@empresa.com.br"
                 defaultValue={currentUser.email}
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase">Senha</label>
+              <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">Senha</label>
               <input
                 type="password"
                 required
                 defaultValue="••••••••"
-                className="w-full mt-1 px-4 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none focus:border-red-500"
+                className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
               />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase">Perfil de Acesso</label>
-              <select
-                className="w-full mt-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded text-white focus:outline-none"
-                value={currentUser.perfil}
-                onChange={(e) => setCurrentUser({ ...currentUser, perfil: e.target.value as any })}
-              >
-                <option value="Administrador">Administrador</option>
-                <option value="Analista">Analista de Licitações</option>
-                <option value="Diretor">Diretor Comercial</option>
-              </select>
             </div>
 
             <button
               type="submit"
-              className="w-full mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded transition"
+              className="w-full mt-4 text-white font-bold py-2.5 rounded transition shadow-sm hover:-translate-y-0.5"
+              style={{ backgroundColor: primaryColor }}
             >
               Conectar com Segurança
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-center text-slate-500">
+          <p className="mt-6 text-xs text-center text-emerald-600">
             Sua empresa segura com timeout de inatividade integrado de {timeoutMinutes}m.
           </p>
         </div>
@@ -702,9 +739,11 @@ export default function Home() {
       <aside className="hidden md:flex min-w-[260px] max-w-[260px] bg-[#0F172A] flex-col text-slate-300 relative z-40 border-r border-slate-800" style={{ backgroundColor: primaryColor }}>
         {/* Modern high-density branding component */}
         <div className="p-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/20">
-          <div className="w-8 h-8 bg-blue-605 rounded flex items-center justify-center font-bold text-white shrink-0" style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}>P</div>
+          <div className="w-8 h-8 shrink-0 relative">
+            <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain rounded" />
+          </div>
           <div>
-            <h1 className="text-white font-bold text-base tracking-tight leading-none">PROPROCURE <span className="text-blue-500 font-light text-[10px] block mt-1 tracking-wider uppercase">PRO-SYNC</span></h1>
+            <h1 className="text-white font-bold text-base tracking-tight leading-none">BUYGOV <span className="text-blue-200 font-light text-[10px] block mt-1 tracking-wider uppercase">PLATAFORMA</span></h1>
           </div>
         </div>
 
@@ -773,6 +812,13 @@ export default function Home() {
             <span>Empresas CRUD</span>
           </button>
           <button
+            onClick={() => setActiveTab('usuarios')}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <User className="w-4 h-4 shrink-0" />
+            <span>Usuários e Perfis</span>
+          </button>
+          <button
             onClick={() => setActiveTab('ajustes')}
             className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
           >
@@ -812,8 +858,10 @@ export default function Home() {
       {/* --- MOBILE VIEW NAVBAR TOP --- */}
       <header className="md:hidden sticky top-0 w-full z-40 bg-slate-900 text-white px-4 py-3 flex justify-between items-center shadow-lg" style={{ backgroundColor: primaryColor }}>
         <div className="flex items-center gap-2">
-          <Gavel className="w-5 h-5 text-red-500" />
-          <h1 className="font-bold text-sm tracking-tight">ProProcure</h1>
+          <div className="w-5 h-5 relative">
+            <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain rounded-sm" />
+          </div>
+          <h1 className="font-bold text-sm tracking-tight">BuyGov</h1>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1757,6 +1805,88 @@ export default function Home() {
             </motion.div>
           )}
 
+          {/* USUÁRIOS E PERFIS TAB SCREEN */}
+          {activeTab === 'usuarios' && (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="space-y-5"
+            >
+              <div className="flex justify-between items-center border-b border-slate-200 pb-4 mt-2">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                    <User className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
+                    Gestão de Perfis de Acesso
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Cadastre novos usuários e vincule-os a perfis autorizados (Administrador, Analista, Diretor).
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddUserModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Adicionar Acesso
+                </button>
+              </div>
+              
+              <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden font-sans">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                      <th className="px-4 py-3 font-semibold w-1/4">Nome do Colaborador</th>
+                      <th className="px-4 py-3 font-semibold w-1/3">E-mail Corporativo</th>
+                      <th className="px-4 py-3 font-semibold text-center w-1/4">Perfil de Acesso</th>
+                      <th className="px-4 py-3 font-semibold text-right w-1/6">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {usuarios.map((u, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition">
+                        <td className="px-4 py-3 font-medium text-slate-800">{u.nome}</td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{u.email}</td>
+                        <td className="px-4 py-3 text-center">
+                          <select 
+                            className="text-xs bg-transparent border border-slate-200 p-1 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1"
+                            value={u.perfil}
+                            onChange={(e) => {
+                              const newUsers = [...usuarios];
+                              newUsers[idx].perfil = e.target.value as any;
+                              setUsuarios(newUsers);
+                              // Sync if modifying self
+                              if (u.email === currentUser.email) {
+                                setCurrentUser(newUsers[idx]);
+                              }
+                            }}
+                          >
+                            <option value="Administrador">Administrador</option>
+                            <option value="Analista">Analista de Licitações</option>
+                            <option value="Diretor">Diretor Comercial</option>
+                          </select>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => {
+                              if(confirm('Tem certeza que deseja remover o acesso deste usuário?')) {
+                                setUsuarios(usuarios.filter((_, i) => i !== idx));
+                              }
+                            }}
+                            className="text-slate-400 hover:text-red-600 transition"
+                            title="Remover acesso"
+                          >
+                            <Trash className="w-4 h-4 inline" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
           {/* AJUSTES TAB SCREEN (REQUIREMENT 4.f / 5 migrations) */}
           {activeTab === 'ajustes' && (
             <motion.div
@@ -1802,11 +1932,13 @@ export default function Home() {
                       </div>
 
                       <div className="pt-2">
-                        <label className="block text-slate-400 text-[10.5px]">Paleta Recomendada Modelo PT:</label>
-                        <div className="flex gap-2 mt-1">
-                          <button onClick={() => setPrimaryColor('#091426')} className="w-5 h-5 rounded-full bg-[#091426] border border-slate-200" title="Midnight Navy"></button>
-                          <button onClick={() => setPrimaryColor('#1e293b')} className="w-5 h-5 rounded-full bg-[#1e293b] border border-slate-200" title="Slate Slate"></button>
-                          <button onClick={() => setPrimaryColor('#7f1d1d')} className="w-5 h-5 rounded-full bg-[#7f1d1d] border border-slate-200" title="Dark Burgundy"></button>
+                        <label className="block text-slate-400 text-[10.5px]">Paleta de Cores (Democracia Digital):</label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <button onClick={() => setPrimaryColor('#059669')} className="w-5 h-5 rounded-full bg-emerald-600 border border-slate-200" title="Verde Esmeralda"></button>
+                          <button onClick={() => setPrimaryColor('#0F172A')} className="w-5 h-5 rounded-full bg-slate-900 border border-slate-200" title="Azul Meia-Noite"></button>
+                          <button onClick={() => setPrimaryColor('#2563EB')} className="w-5 h-5 rounded-full bg-blue-600 border border-slate-200" title="Azul Royal"></button>
+                          <button onClick={() => setPrimaryColor('#DC2626')} className="w-5 h-5 rounded-full bg-red-600 border border-slate-200" title="Vermelho Vibrante"></button>
+                          <button onClick={() => setPrimaryColor('#7C3AED')} className="w-5 h-5 rounded-full bg-violet-600 border border-slate-200" title="Roxo Ametista"></button>
                         </div>
                       </div>
                     </div>
@@ -2039,6 +2171,69 @@ CREATE TABLE IF NOT EXISTS public.licitacoes (
           </AnimatePresence>
         </div>
       </main>
+
+      {/* --- ADD USER DIALOG MODAL --- */}
+      {showAddUserModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full gap-4 flex flex-col shadow-2xl border border-slate-150 animate-fade-in font-sans">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-800 text-sm">Adicionar Usuário</h3>
+              <button onClick={() => setShowAddUserModal(false)}><X className="w-5 h-5 text-slate-400 hover:text-slate-600" /></button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome Completo</label>
+                <input 
+                  type="text" 
+                  value={newUserName}
+                  onChange={e => setNewUserName(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
+                  placeholder="Ex: João da Silva"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">E-mail Corporativo</label>
+                <input 
+                  type="email" 
+                  value={newUserEmail}
+                  onChange={e => setNewUserEmail(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
+                  placeholder="joao.silva@empresa.com.br"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Perfil de Acesso</label>
+                <select 
+                  value={newUserRole}
+                  onChange={e => setNewUserRole(e.target.value as any)}
+                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="Administrador">Administrador</option>
+                  <option value="Analista">Analista de Licitações</option>
+                  <option value="Diretor">Diretor Comercial</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => setShowAddUserModal(false)}
+                className="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded font-semibold transition"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleAddUser}
+                className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition shadow-sm"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Salvar Usuário
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- ADD COMPANY DIALOG MODAL --- */}
       {showAddCompanyModal && (
