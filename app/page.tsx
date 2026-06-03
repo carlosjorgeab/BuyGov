@@ -61,6 +61,81 @@ import {
   MatchAnalysisResult
 } from '@/lib/mock_data';
 
+const SQL_MIGRATION_SCRIPT = `-- SQL MIGRATIONS FOR BUYGOV TENDER AND COMPLIANCE SYSTEM
+-- ATUALIZAÇÃO RECENTE: SEPARAÇÃO COMPLETA DE CADASTRO DE PERFIL E USUÁRIO
+
+-- 1. Tabela de Empresas
+CREATE TABLE IF NOT EXISTS public.empresas (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    nome VARCHAR(255) NOT NULL,
+    chave_empresa VARCHAR(50) UNIQUE NOT NULL,
+    cnpj VARCHAR(20) NOT NULL
+);
+
+-- 2. Tabela de Perfis de Acesso (Módulos dinâmicos configuráveis)
+CREATE TABLE IF NOT EXISTS public.perfis_acesso (
+    id VARCHAR(100) PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    dashboard BOOLEAN DEFAULT true,
+    agenda BOOLEAN DEFAULT true,
+    scanner BOOLEAN DEFAULT true,
+    atestados BOOLEAN DEFAULT true,
+    empresas BOOLEAN DEFAULT false,
+    usuarios_perfis BOOLEAN DEFAULT false,
+    ajustes BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 3. Tabela de Usuários Corporativos
+CREATE TABLE IF NOT EXISTS public.usuarios (
+    email VARCHAR(255) PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    perfil_id VARCHAR(100) REFERENCES public.perfis_acesso(id) ON DELETE SET NULL,
+    chave_empresa VARCHAR(50), -- Chave da empresa vinculada ou 'ALL' para admin geral
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. Tabela de Licitações (Tenders)
+CREATE TABLE IF NOT EXISTS public.licitacoes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chave_empresa VARCHAR(50) REFERENCES empresas(chave_empresa) ON DELETE CASCADE,
+    modalidade VARCHAR(100),
+    objeto TEXT,
+    valor_estimado NUMERIC(15,2),
+    prazo_proposta TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. Carga de Dados Inicial de Segurança (Seed)
+INSERT INTO public.perfis_acesso (id, nome, dashboard, agenda, scanner, atestados, empresas, usuarios_perfis, ajustes)
+VALUES 
+  ('perfil-admin', 'Administrador Geral', true, true, true, true, true, true, true),
+  ('perfil-analista', 'Analista de Licitações', true, true, true, true, false, false, false),
+  ('perfil-diretor', 'Diretor Comercial', true, true, false, true, false, false, true)
+ON CONFLICT (id) DO UPDATE SET
+  nome = EXCLUDED.nome,
+  dashboard = EXCLUDED.dashboard,
+  agenda = EXCLUDED.agenda,
+  scanner = EXCLUDED.scanner,
+  atestados = EXCLUDED.atestados,
+  empresas = EXCLUDED.empresas,
+  usuarios_perfis = EXCLUDED.usuarios_perfis,
+  ajustes = EXCLUDED.ajustes;
+
+INSERT INTO public.usuarios (email, nome, senha, perfil_id, chave_empresa)
+VALUES 
+  ('admin', 'Administrador Geral', 'Cjl@j2326082110', 'perfil-admin', 'ALL'),
+  ('carlos.mendes@empresa.com.br', 'Carlos Mendes', '123', 'perfil-admin', 'LICITATECH'),
+  ('analista.licita@empresa.com.br', 'Ana Silva', '123', 'perfil-analista', 'LICITATECH'),
+  ('diretor.licita@empresa.com.br', 'Roberto Costa', '123', 'perfil-diretor', 'LICITATECH')
+ON CONFLICT (email) DO UPDATE SET
+  nome = EXCLUDED.nome,
+  senha = EXCLUDED.senha,
+  perfil_id = EXCLUDED.perfil_id,
+  chave_empresa = EXCLUDED.chave_empresa;`;
+
 // Pure external ID helper to avoid render side-effects and satisfy React purity parameters
 function generateGuid(prefix = '') {
   const uniq = Math.floor(Math.random() * 10000000).toString(36);
@@ -748,8 +823,7 @@ export default function Home() {
 
   // Copy code utility
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(`-- Migrations SUPABASE SQL
--- Copie este código e cole no SQL Editor no Painel do Supabase da sua Empresa.`);
+    navigator.clipboard.writeText(SQL_MIGRATION_SCRIPT);
     setCopySuccess(true);
     setTimeout(() => setCopySuccess(false), 2000);
   };
@@ -2381,22 +2455,7 @@ export default function Home() {
                     </p>
                     <div className="bg-slate-950 p-4 rounded-lg overflow-x-auto max-h-56">
                       <pre className="text-slate-300 text-[11px] font-mono leading-relaxed select-all">
-{`-- SQL MIGRATIONS FOR PROPROCURE TENDER AND COMPLIANCE SYSTEM
-CREATE TABLE IF NOT EXISTS public.empresas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    nome VARCHAR(255) NOT NULL,
-    chave_empresa VARCHAR(50) UNIQUE NOT NULL,
-    cnpj VARCHAR(20) NOT NULL
-);
-CREATE TABLE IF NOT EXISTS public.licitacoes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES empresas(chave_empresa),
-    modalidade VARCHAR(100),
-    objeto TEXT,
-    valor_estimado NUMERIC(15,2),
-    prazo_proposta TIMESTAMP,
-    status VARCHAR(50)
-);`}
+{SQL_MIGRATION_SCRIPT}
                       </pre>
                     </div>
                   </div>
