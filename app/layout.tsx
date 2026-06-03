@@ -9,7 +9,7 @@ const workSans = Work_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'ProProcure - Controle de Licitações',
+  title: 'BuyGov- Controle de Licitações',
   description: 'Plataforma inteligente de monitoramento e controle de licitações públicas.',
 };
 
