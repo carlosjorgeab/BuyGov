@@ -39,7 +39,9 @@ import {
   Award,
   Globe,
   Upload,
-  Copy
+  Copy,
+  Menu,
+  Lock
 } from 'lucide-react';
 
 import {
@@ -154,7 +156,7 @@ export default function Home() {
   const [usuarios, setUsuarios] = useState<PerfilUsuario[]>([]);
   const [perfis, setPerfis] = useState<PerfilAcesso[]>([]);
   const [currentUser, setCurrentUser] = useState<PerfilUsuario>(INITIAL_USER);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sessionToken, setSessionToken] = useState<string>('');
   const [multiSessionAlert, setMultiSessionAlert] = useState(false);
 
@@ -168,6 +170,7 @@ export default function Home() {
 
   // Active Nav Tab state
   const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'ajustes'>('dashboard');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Supabase connection setting state
   const [supabaseUrl, setSupabaseUrl] = useState('');
@@ -399,6 +402,25 @@ export default function Home() {
   const companyBids = licitacoes.filter(item => item.chave_empresa === activeCompanyKey);
   const companyCerts = atestados.filter(item => item.chave_empresa === activeCompanyKey);
 
+  const hasTabPermission = (tab: string) => {
+    if (!currentUser) return false;
+    if (currentUser.email === 'admin') return true;
+    
+    const userProfile = perfis.find(p => p.id === currentUser.perfilId);
+    if (!userProfile) return false;
+    
+    switch (tab) {
+      case 'dashboard': return !!userProfile.dashboard;
+      case 'agenda': return !!userProfile.agenda;
+      case 'scanner': return !!userProfile.scanner;
+      case 'atestados': return !!userProfile.atestados;
+      case 'empresas': return !!userProfile.empresas;
+      case 'usuarios': return !!userProfile.usuarios_perfis;
+      case 'ajustes': return !!userProfile.ajustes;
+      default: return false;
+    }
+  };
+
   // --- MOCK SUPABASE REMOTE SYNC SIMULATOR ---
   const handleSupabaseSync = async () => {
     if (!supabaseUrl || !supabaseKey) {
@@ -454,9 +476,25 @@ export default function Home() {
     if (user.email === 'admin') {
       // General admin can always switch and see all companies
       setActiveCompanyKey('LICITATECH');
+      setActiveTab('dashboard');
     } else if (user.chave_empresa) {
       // For general users, automatically load their company and lock it
       setActiveCompanyKey(user.chave_empresa);
+      
+      // Determine their first permitted tab
+      const profile = perfis.find(p => p.id === user.perfilId);
+      if (profile) {
+        if (profile.dashboard) setActiveTab('dashboard');
+        else if (profile.agenda) setActiveTab('agenda');
+        else if (profile.scanner) setActiveTab('scanner');
+        else if (profile.atestados) setActiveTab('atestados');
+        else if (profile.empresas) setActiveTab('empresas');
+        else if (profile.usuarios_perfis) setActiveTab('usuarios');
+        else if (profile.ajustes) setActiveTab('ajustes');
+      } else {
+        // Fallback default
+        setActiveTab('dashboard');
+      }
     }
 
     setIsLoggedIn(true);
@@ -942,60 +980,74 @@ export default function Home() {
 
         {/* Sidebar Nav Links */}
         <nav className="flex-1 p-4 space-y-1">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Briefcase className="w-4 h-4 shrink-0" />
-            <span>Dashboard</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('agenda')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'agenda' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Calendar className="w-4 h-4 shrink-0" />
-            <span>Agenda & Prazos</span>
-            {companyBids.length > 0 && (
-              <span className="ml-auto bg-red-650 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold font-mono">
-                {companyBids.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('scanner')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-            <span>Scanner Edital IA</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('atestados')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'atestados' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <FileText className="w-4 h-4 shrink-0" />
-            <span>Atestados Técnicos</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('empresas')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Building className="w-4 h-4 shrink-0" />
-            <span>Empresas CRUD</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('usuarios')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <User className="w-4 h-4 shrink-0" />
-            <span>Usuários e Perfis</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('ajustes')}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-          >
-            <Settings className="w-4 h-4 shrink-0" />
-            <span>Configurações</span>
-          </button>
+          {hasTabPermission('dashboard') && (
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Briefcase className="w-4 h-4 shrink-0" />
+              <span>Dashboard</span>
+            </button>
+          )}
+          {hasTabPermission('agenda') && (
+            <button
+              onClick={() => setActiveTab('agenda')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'agenda' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Calendar className="w-4 h-4 shrink-0" />
+              <span>Agenda & Prazos</span>
+              {companyBids.length > 0 && (
+                <span className="ml-auto bg-red-650 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold font-mono">
+                  {companyBids.length}
+                </span>
+              )}
+            </button>
+          )}
+          {hasTabPermission('scanner') && (
+            <button
+              onClick={() => setActiveTab('scanner')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+              <span>Scanner Edital IA</span>
+            </button>
+          )}
+          {hasTabPermission('atestados') && (
+            <button
+              onClick={() => setActiveTab('atestados')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'atestados' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <FileText className="w-4 h-4 shrink-0" />
+              <span>Atestados Técnicos</span>
+            </button>
+          )}
+          {hasTabPermission('empresas') && (
+            <button
+              onClick={() => setActiveTab('empresas')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Building className="w-4 h-4 shrink-0" />
+              <span>Empresas CRUD</span>
+            </button>
+          )}
+          {hasTabPermission('usuarios') && (
+            <button
+              onClick={() => setActiveTab('usuarios')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <User className="w-4 h-4 shrink-0" />
+              <span>Usuários e Perfis</span>
+            </button>
+          )}
+          {hasTabPermission('ajustes') && (
+            <button
+              onClick={() => setActiveTab('ajustes')}
+              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              <span>Configurações</span>
+            </button>
+          )}
         </nav>
 
         {/* Bottom session timer footer info */}
@@ -1029,8 +1081,15 @@ export default function Home() {
       </aside>
 
       {/* --- MOBILE VIEW NAVBAR TOP --- */}
-      <header className="md:hidden sticky top-0 w-full z-40 bg-slate-900 text-white px-4 py-3 flex justify-between items-center shadow-lg" style={{ backgroundColor: primaryColor }}>
+      <header className="md:hidden sticky top-0 w-full z-45 bg-slate-900 text-white px-4 py-3 flex justify-between items-center shadow-lg" style={{ backgroundColor: primaryColor }}>
         <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
+            className="p-1 focus:outline-none hover:bg-slate-800 rounded transition"
+            aria-label="Menu"
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
+          </button>
           <div className="w-5 h-5 relative">
             <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain rounded-sm" />
           </div>
@@ -1049,13 +1108,126 @@ export default function Home() {
             ))}
           </select>
 
-          <span className="text-[10px] font-mono text-red-400 font-bold">{formatTimeMinutes(secondsRemaining)}</span>
+          <span className="text-[10px] font-mono text-white font-bold">{formatTimeMinutes(secondsRemaining)}</span>
 
           <button onClick={handleLogout} className="text-slate-400 hover:text-white">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
+
+      {/* --- MOBILE DROPDOWN MENU --- */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden w-full bg-slate-900 border-b border-slate-800 text-white z-40 flex flex-col shadow-xl overflow-hidden font-sans"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <div className="px-4 py-3 space-y-1 bg-slate-950/20">
+              <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-2">Módulos de Acesso</div>
+              
+              {hasTabPermission('dashboard') && (
+                <button
+                  onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <Briefcase className="w-4 h-4 text-slate-450" />
+                  <span>Dashboard Geral</span>
+                </button>
+              )}
+
+              {hasTabPermission('agenda') && (
+                <button
+                  onClick={() => { setActiveTab('agenda'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'agenda' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <Calendar className="w-4 h-4 text-slate-450" />
+                  <span>Agenda & Prazos</span>
+                  {companyBids.length > 0 && (
+                    <span className="ml-auto bg-red-650 text-white text-[9px] px-1.5 py-0.5 rounded font-mono font-extrabold">
+                      {companyBids.length}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {hasTabPermission('scanner') && (
+                <button
+                  onClick={() => { setActiveTab('scanner'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Scanner de Editais IA</span>
+                </button>
+              )}
+
+              {hasTabPermission('atestados') && (
+                <button
+                  onClick={() => { setActiveTab('atestados'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'atestados' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <FileText className="w-4 h-4 text-slate-450" />
+                  <span>Atestados Técnicos</span>
+                </button>
+              )}
+
+              {hasTabPermission('empresas') && (
+                <button
+                  onClick={() => { setActiveTab('empresas'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <Building className="w-4 h-4 text-slate-450" />
+                  <span>Empresas CRUD</span>
+                </button>
+              )}
+
+              {hasTabPermission('usuarios') && (
+                <button
+                  onClick={() => { setActiveTab('usuarios'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <User className="w-4 h-4 text-slate-450" />
+                  <span>Usuários & Perfis</span>
+                </button>
+              )}
+
+              {hasTabPermission('ajustes') && (
+                <button
+                  onClick={() => { setActiveTab('ajustes'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <Settings className="w-4 h-4 text-slate-450" />
+                  <span>Configurações & Supabase</span>
+                </button>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-800 bg-slate-950/40 text-xs">
+              <div className="flex items-center gap-2 justify-between">
+                <div className="flex items-center gap-2 truncate">
+                  <User className="w-4 h-4 text-red-400 shrink-0" />
+                  <div className="truncate">
+                    <p className="font-semibold text-white truncate text-[11px]">{currentUser.nome}</p>
+                    <p className="text-[9px] text-slate-400 uppercase font-mono">
+                      {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                  className="px-2.5 py-1 text-[10px] uppercase font-bold text-red-400 bg-red-950/30 border border-red-900 rounded flex items-center gap-1 hover:bg-red-900 hover:text-white transition"
+                >
+                  <LogOut className="w-3 h-3" /> Sair
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* --- DESKTOP HIGH-DENSITY HEADERS AND CONTENT WRAPPERS --- */}
       <main className="flex-grow flex flex-col min-h-screen bg-[#F8FAFC]">
