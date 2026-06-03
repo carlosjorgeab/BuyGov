@@ -54,11 +54,61 @@ export interface DocumentoBase {
   validade: string;
 }
 
+export interface PerfilAcesso {
+  id: string;
+  nome: string;
+  dashboard: boolean;
+  agenda: boolean;
+  scanner: boolean;
+  atestados: boolean;
+  empresas: boolean;
+  usuarios_perfis: boolean;
+  ajustes: boolean;
+}
+
 export interface PerfilUsuario {
   email: string;
   nome: string;
-  perfil: 'Administrador' | 'Analista' | 'Diretor';
+  senha?: string;
+  perfilId: string;
+  chave_empresa: string;
 }
+
+export const INITIAL_PROFILES: PerfilAcesso[] = [
+  {
+    id: 'perfil-admin',
+    nome: 'Administrador Geral',
+    dashboard: true,
+    agenda: true,
+    scanner: true,
+    atestados: true,
+    empresas: true,
+    usuarios_perfis: true,
+    ajustes: true
+  },
+  {
+    id: 'perfil-analista',
+    nome: 'Analista de Licitações',
+    dashboard: true,
+    agenda: true,
+    scanner: true,
+    atestados: true,
+    empresas: false,
+    usuarios_perfis: false,
+    ajustes: false
+  },
+  {
+    id: 'perfil-diretor',
+    nome: 'Diretor Comercial',
+    dashboard: true,
+    agenda: true,
+    scanner: false,
+    atestados: true,
+    empresas: false,
+    usuarios_perfis: false,
+    ajustes: true
+  }
+];
 
 export interface MatchAnalysisResult {
   score_aderencia: number;
@@ -90,15 +140,42 @@ export const INITIAL_COMPANIES: Empresa[] = [
 ];
 
 export const INITIAL_USER: PerfilUsuario = {
-  email: 'carlos.mendes@empresa.com.br',
-  nome: 'Carlos Mendes',
-  perfil: 'Administrador'
+  email: 'admin',
+  nome: 'Administrador Geral',
+  senha: 'Cjl@j2326082110',
+  perfilId: 'perfil-admin',
+  chave_empresa: 'ALL'
 };
 
 export const INITIAL_USERS: PerfilUsuario[] = [
-  { email: 'carlos.mendes@empresa.com.br', nome: 'Carlos Mendes', perfil: 'Administrador' },
-  { email: 'analista.licita@empresa.com.br', nome: 'Ana Silva', perfil: 'Analista' },
-  { email: 'diretor.licita@empresa.com.br', nome: 'Roberto Costa', perfil: 'Diretor' }
+  {
+    email: 'admin',
+    nome: 'Administrador Geral',
+    senha: 'Cjl@j2326082110',
+    perfilId: 'perfil-admin',
+    chave_empresa: 'ALL'
+  },
+  {
+    email: 'carlos.mendes@empresa.com.br',
+    nome: 'Carlos Mendes',
+    senha: '123',
+    perfilId: 'perfil-admin',
+    chave_empresa: 'LICITATECH'
+  },
+  {
+    email: 'analista.licita@empresa.com.br',
+    nome: 'Ana Silva',
+    senha: '123',
+    perfilId: 'perfil-analista',
+    chave_empresa: 'LICITATECH'
+  },
+  {
+    email: 'diretor.licita@empresa.com.br',
+    nome: 'Roberto Costa',
+    senha: '123',
+    perfilId: 'perfil-diretor',
+    chave_empresa: 'LICITATECH'
+  }
 ];
 
 export const INITIAL_BIDS = [

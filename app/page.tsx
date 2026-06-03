@@ -49,9 +49,11 @@ import {
   AtestadoItem,
   DocumentoBase,
   PerfilUsuario,
+  PerfilAcesso,
   INITIAL_COMPANIES,
   INITIAL_USER,
   INITIAL_USERS,
+  INITIAL_PROFILES,
   INITIAL_BIDS,
   INITIAL_CERTIFICATES,
   INITIAL_DOCUMENTS,
@@ -75,6 +77,7 @@ export default function Home() {
 
   // Active User and Login Session Checks
   const [usuarios, setUsuarios] = useState<PerfilUsuario[]>([]);
+  const [perfis, setPerfis] = useState<PerfilAcesso[]>([]);
   const [currentUser, setCurrentUser] = useState<PerfilUsuario>(INITIAL_USER);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [sessionToken, setSessionToken] = useState<string>('');
@@ -124,7 +127,23 @@ export default function Home() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'Administrador' | 'Analista' | 'Diretor'>('Analista');
+  const [newUserPassword, setNewUserPassword] = useState('123');
+  const [newUserProfileId, setNewUserProfileId] = useState('perfil-analista');
+  const [newUserCompanyKey, setNewUserCompanyKey] = useState('LICITATECH');
+
+  // Sub-tabs for separating User from Profiles CRUD
+  const [userSubTab, setUserSubTab] = useState<'usuarios' | 'perfis'>('usuarios');
+
+  // Profile CRUD states
+  const [showAddProfileModal, setShowAddProfileModal] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [newProfileDashboard, setNewProfileDashboard] = useState(true);
+  const [newProfileAgenda, setNewProfileAgenda] = useState(true);
+  const [newProfileScanner, setNewProfileScanner] = useState(true);
+  const [newProfileAtestados, setNewProfileAtestados] = useState(true);
+  const [newProfileEmpresas, setNewProfileEmpresas] = useState(false);
+  const [newProfileUsuariosPerfis, setNewProfileUsuariosPerfis] = useState(false);
+  const [newProfileAjustes, setNewProfileAjustes] = useState(false);
 
   // Simple CRUD controllers
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
@@ -206,6 +225,13 @@ export default function Home() {
         localStorage.setItem('proprocure_usuarios', JSON.stringify(INITIAL_USERS));
       }
 
+      const storedProfiles = localStorage.getItem('proprocure_perfis');
+      if (storedProfiles) setPerfis(JSON.parse(storedProfiles));
+      else {
+        setPerfis(INITIAL_PROFILES);
+        localStorage.setItem('proprocure_perfis', JSON.stringify(INITIAL_PROFILES));
+      }
+
       const storedHistory = localStorage.getItem('proprocure_scanned_history');
       if (storedHistory) setLastScannedTenders(JSON.parse(storedHistory));
 
@@ -248,6 +274,11 @@ export default function Home() {
     if (!stateLoaded) return;
     localStorage.setItem('proprocure_usuarios', JSON.stringify(usuarios));
   }, [usuarios, stateLoaded]);
+
+  useEffect(() => {
+    if (!stateLoaded) return;
+    localStorage.setItem('proprocure_perfis', JSON.stringify(perfis));
+  }, [perfis, stateLoaded]);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -328,15 +359,31 @@ export default function Home() {
   // Re-login trigger
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const email = (e.currentTarget.querySelector('input[type="email"]') as HTMLInputElement).value;
-    const user = usuarios.find(u => u.email === email);
+    const inputs = e.currentTarget.querySelectorAll('input');
+    const login = inputs[0]?.value.trim();
+    const password = inputs[1]?.value.trim();
+    
+    const user = usuarios.find(u => u.email === login);
     
     if (!user) {
       alert('Usuário não encontrado. Solicite acesso ao Administrador.');
       return;
     }
     
+    if (user.senha && user.senha !== password) {
+      alert('Senha incorreta.');
+      return;
+    }
+    
     setCurrentUser(user);
+    if (user.email === 'admin') {
+      // General admin can always switch and see all companies
+      setActiveCompanyKey('LICITATECH');
+    } else if (user.chave_empresa) {
+      // For general users, automatically load their company and lock it
+      setActiveCompanyKey(user.chave_empresa);
+    }
+
     setIsLoggedIn(true);
     setMultiSessionAlert(false);
     setSecondsRemaining(timeoutMinutes * 60);
@@ -351,21 +398,65 @@ export default function Home() {
   };
 
   const handleAddUser = () => {
-    if (!newUserEmail || !newUserName) {
+    if (!newUserEmail || !newUserName || !newUserPassword) {
       alert("Por favor preencha todos os campos do usuário.");
       return;
     }
     const isEditing = usuarios.some(u => u.email === newUserEmail);
     if (isEditing) {
-      alert("Este e-mail já está cadastrado.");
+      alert("Este e-mail/usuário já está cadastrado.");
       return;
     }
-    const nextList = [{ email: newUserEmail, nome: newUserName, perfil: newUserRole }, ...usuarios];
+    const nextList: PerfilUsuario[] = [
+      {
+        email: newUserEmail,
+        nome: newUserName,
+        senha: newUserPassword,
+        perfilId: newUserProfileId,
+        chave_empresa: newUserCompanyKey
+      },
+      ...usuarios
+    ];
     setUsuarios(nextList);
     setNewUserEmail('');
     setNewUserName('');
-    setNewUserRole('Analista');
+    setNewUserPassword('123');
+    setNewUserProfileId('perfil-analista');
+    setNewUserCompanyKey('LICITATECH');
     setShowAddUserModal(false);
+  };
+
+  const handleAddProfile = () => {
+    if (!newProfileName) {
+      alert("Por favor digite o nome do perfil.");
+      return;
+    }
+    const slug = 'perfil-' + newProfileName.toLowerCase().trim().replace(/\s+/g, '-');
+    if (perfis.some(p => p.id === slug || p.nome.toLowerCase() === newProfileName.toLowerCase())) {
+      alert("Este perfil de acesso já existe.");
+      return;
+    }
+    const newP: PerfilAcesso = {
+      id: slug,
+      nome: newProfileName,
+      dashboard: newProfileDashboard,
+      agenda: newProfileAgenda,
+      scanner: newProfileScanner,
+      atestados: newProfileAtestados,
+      empresas: newProfileEmpresas,
+      usuarios_perfis: newProfileUsuariosPerfis,
+      ajustes: newProfileAjustes
+    };
+    setPerfis([newP, ...perfis]);
+    setNewProfileName('');
+    setNewProfileDashboard(true);
+    setNewProfileAgenda(true);
+    setNewProfileScanner(true);
+    setNewProfileAtestados(true);
+    setNewProfileEmpresas(false);
+    setNewProfileUsuariosPerfis(false);
+    setNewProfileAjustes(false);
+    setShowAddProfileModal(false);
   };
 
   // --- CRUD DISPATCH METHODS ---
@@ -695,13 +786,13 @@ export default function Home() {
 
           <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">E-mail Corporativo</label>
+              <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">E-mail ou Login</label>
               <input
-                type="email"
+                type="text"
                 required
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
-                placeholder="exemplo@empresa.com.br"
-                defaultValue={currentUser.email}
+                placeholder="exemplo@empresa.com.br ou 'admin'"
+                defaultValue={currentUser?.email || ''}
               />
             </div>
 
@@ -710,7 +801,7 @@ export default function Home() {
               <input
                 type="password"
                 required
-                defaultValue="••••••••"
+                placeholder="Sua senha corporativa"
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
               />
             </div>
@@ -757,13 +848,19 @@ export default function Home() {
             <select
               value={activeCompanyKey}
               onChange={(e) => setActiveCompanyKey(e.target.value)}
-              className="w-full py-1.5 px-2 bg-slate-800 border border-slate-700 rounded text-xs font-semibold text-white focus:outline-none focus:border-blue-550 cursor-pointer"
+              disabled={currentUser?.email !== 'admin'}
+              className="w-full py-1.5 px-2 bg-slate-800 border border-slate-700 rounded text-xs font-semibold text-white focus:outline-none focus:border-blue-550 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {empresas.map(emp => (
                 <option key={emp.id} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
               ))}
             </select>
           </div>
+          {currentUser?.email !== 'admin' && (
+            <span className="block mt-1 text-[9px] text-amber-400 font-mono italic">
+              Empresa vinculada obrigatória no login.
+            </span>
+          )}
           <span className="block mt-1.5 text-[9px] text-slate-400 font-mono">
             CNPJ ID: {currentCompany?.cnpj}
           </span>
@@ -833,7 +930,9 @@ export default function Home() {
             <User className="w-3.5 h-3.5 text-red-400" />
             <div className="truncate">
               <p className="font-semibold text-white truncate text-[11px]">{currentUser.nome}</p>
-              <p className="text-[9px] text-slate-400 uppercase font-mono">{currentUser.perfil}</p>
+              <p className="text-[9px] text-slate-400 uppercase font-mono">
+                {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
+              </p>
             </div>
           </div>
           <div className="p-2 bg-slate-900 rounded border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between mb-3">
@@ -868,7 +967,8 @@ export default function Home() {
           <select
             value={activeCompanyKey}
             onChange={(e) => setActiveCompanyKey(e.target.value)}
-            className="py-1 px-1.5 bg-slate-800 border border-slate-700 text-[10.5px] rounded text-white"
+            disabled={currentUser?.email !== 'admin'}
+            className="py-1 px-1.5 bg-slate-800 border border-slate-700 text-[10.5px] rounded text-white disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {empresas.map(emp => (
               <option key={emp.id} value={emp.chave_empresa}>{emp.chave_empresa}</option>
@@ -889,11 +989,14 @@ export default function Home() {
         <header className="hidden md:flex h-14 bg-white border-b border-slate-200 px-6 items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">Multi-Empresa Ativa</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">
+                {currentUser?.email === 'admin' ? 'Multi-Empresa Ativa' : 'Empresa Vinculada (Sessão)'}
+              </span>
               <select
                 value={activeCompanyKey}
                 onChange={(e) => setActiveCompanyKey(e.target.value)}
-                className="text-sm font-semibold text-slate-800 bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none mt-1"
+                disabled={currentUser?.email !== 'admin'}
+                className="text-sm font-semibold text-slate-805 bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none mt-1 disabled:opacity-75 disabled:cursor-not-allowed"
               >
                 {empresas.map(emp => (
                   <option key={emp.id} value={emp.chave_empresa}>{emp.nome}</option>
@@ -911,7 +1014,9 @@ export default function Home() {
             <div className="flex items-center gap-3 text-right">
               <div>
                 <div className="text-xs font-bold text-slate-800 leading-none">{currentUser.nome}</div>
-                <div className="text-[9px] text-slate-500 italic uppercase tracking-tighter leading-none mt-1">{currentUser.perfil}</div>
+                <div className="text-[9px] text-slate-500 italic uppercase tracking-tighter leading-none mt-1">
+                  {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
+                </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs uppercase shadow-sm">
                 {currentUser.nome.substring(0, 2)}
@@ -1811,79 +1916,212 @@ export default function Home() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="space-y-5"
+              className="space-y-6"
             >
-              <div className="flex justify-between items-center border-b border-slate-200 pb-4 mt-2">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <User className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
-                    Gestão de Perfis de Acesso
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Cadastre novos usuários e vincule-os a perfis autorizados (Administrador, Analista, Diretor).
-                  </p>
-                </div>
+              {/* Internal Sub-Tabs Navigation */}
+              <div className="flex justify-between items-center bg-slate-150 p-1 rounded-lg max-w-md border border-slate-200">
                 <button
-                  onClick={() => setShowAddUserModal(true)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                  style={{ backgroundColor: primaryColor }}
+                  type="button"
+                  onClick={() => setUserSubTab('usuarios')}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'usuarios' ? 'bg-white shadow-xs text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  <Plus className="w-3.5 h-3.5" /> Adicionar Acesso
+                  Controle de Usuários
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUserSubTab('perfis')}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'perfis' ? 'bg-white shadow-xs text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Perfis e Módulos
                 </button>
               </div>
-              
-              <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden font-sans">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                      <th className="px-4 py-3 font-semibold w-1/4">Nome do Colaborador</th>
-                      <th className="px-4 py-3 font-semibold w-1/3">E-mail Corporativo</th>
-                      <th className="px-4 py-3 font-semibold text-center w-1/4">Perfil de Acesso</th>
-                      <th className="px-4 py-3 font-semibold text-right w-1/6">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-sm">
-                    {usuarios.map((u, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition">
-                        <td className="px-4 py-3 font-medium text-slate-800">{u.nome}</td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{u.email}</td>
-                        <td className="px-4 py-3 text-center">
-                          <select 
-                            className="text-xs bg-transparent border border-slate-200 p-1 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1"
-                            value={u.perfil}
-                            onChange={(e) => {
-                              const newUsers = [...usuarios];
-                              newUsers[idx].perfil = e.target.value as any;
-                              setUsuarios(newUsers);
-                              // Sync if modifying self
-                              if (u.email === currentUser.email) {
-                                setCurrentUser(newUsers[idx]);
-                              }
-                            }}
-                          >
-                            <option value="Administrador">Administrador</option>
-                            <option value="Analista">Analista de Licitações</option>
-                            <option value="Diretor">Diretor Comercial</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => {
-                              if(confirm('Tem certeza que deseja remover o acesso deste usuário?')) {
-                                setUsuarios(usuarios.filter((_, i) => i !== idx));
-                              }
-                            }}
-                            className="text-slate-400 hover:text-red-600 transition"
-                            title="Remover acesso"
-                          >
-                            <Trash className="w-4 h-4 inline" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+              {/* USER MANAGEMENT SUB-TAB */}
+              {userSubTab === 'usuarios' && (
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <User className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
+                        Controle de Usuários Corporativos
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cadastre e edite as credenciais de colaboradores. Cada usuário é vinculado a um Perfil de Acesso e a uma Empresa obrigatória.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddUserModal(true)}
+                      className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Adicionar Usuário
+                    </button>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 font-semibold w-1/5">Nome do Colaborador</th>
+                          <th className="px-4 py-3 font-semibold w-1/5">E-mail / Login</th>
+                          <th className="px-4 py-3 font-semibold w-1/6">Senha</th>
+                          <th className="px-4 py-3 font-semibold w-1/5 text-center">Perfil de Acesso</th>
+                          <th className="px-4 py-3 font-semibold w-1/5 text-center">Empresa Cadastrada</th>
+                          <th className="px-4 py-3 font-semibold text-right w-1/12">Excluir</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {usuarios.map((u, idx) => {
+                          const isSuperAdmin = u.email === 'admin';
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/50 transition">
+                              <td className="px-4 py-3 font-medium text-slate-800">{u.nome}</td>
+                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.email}</td>
+                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.senha || '•••'}</td>
+                              <td className="px-4 py-3 text-center">
+                                <select 
+                                  className="text-xs bg-slate-50 border border-slate-250 p-1.5 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 max-w-[150px]"
+                                  value={u.perfilId}
+                                  disabled={isSuperAdmin}
+                                  onChange={(e) => {
+                                    const newUsers = [...usuarios];
+                                    newUsers[idx].perfilId = e.target.value;
+                                    setUsuarios(newUsers);
+                                    if (u.email === currentUser?.email) {
+                                      setCurrentUser(newUsers[idx]);
+                                    }
+                                  }}
+                                >
+                                  {perfis.map(p => (
+                                    <option key={p.id} value={p.id}>{p.nome}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <select 
+                                  className="text-xs bg-slate-50 border border-slate-250 p-1.5 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 max-w-[150px]"
+                                  value={u.chave_empresa}
+                                  disabled={isSuperAdmin}
+                                  onChange={(e) => {
+                                    const newUsers = [...usuarios];
+                                    newUsers[idx].chave_empresa = e.target.value;
+                                    setUsuarios(newUsers);
+                                    if (u.email === currentUser?.email) {
+                                      setCurrentUser(newUsers[idx]);
+                                      setActiveCompanyKey(e.target.value);
+                                    }
+                                  }}
+                                >
+                                  {isSuperAdmin && <option value="ALL">Todas (Acesso Geral)</option>}
+                                  {empresas.map(emp => (
+                                    <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {isSuperAdmin ? (
+                                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 font-mono">Inviolável</span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Tem certeza que deseja remover o acesso deste usuário?')) {
+                                        setUsuarios(usuarios.filter((_, i) => i !== idx));
+                                      }
+                                    }}
+                                    className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
+                                    title="Remover acesso"
+                                  >
+                                    <Trash className="w-4 h-4 inline" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* PROFILES AND MODULES SUB-TAB */}
+              {userSubTab === 'perfis' && (
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
+                        Configuração de Perfis e Permissões de Módulos
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Defina quais seções de menu (Dashboard, Agenda, Inteligência, Atestados, Empresas, Configurações) estão disponíveis para cada nível de perfil de acesso.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddProfileModal(true)}
+                      className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Adicionar Perfil
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 font-semibold w-1/4">Nome do Perfil</th>
+                          <th className="px-4 py-3 font-semibold w-2/3">Módulos Corporativos Habilitados</th>
+                          <th className="px-4 py-3 font-semibold text-right w-1/12">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {perfis.map((p, idx) => {
+                          const isCoreProfile = p.id === 'perfil-admin';
+                          return (
+                            <tr key={p.id} className="hover:bg-slate-50/50 transition">
+                              <td className="px-4 py-3 font-bold text-slate-800">{p.nome}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {p.dashboard && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Painel / Licitações</span>}
+                                  {p.agenda && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Calendário</span>}
+                                  {p.scanner && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Scanner IA / Licitações</span>}
+                                  {p.atestados && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Biblioteca de Atestados</span>}
+                                  {p.empresas && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Gestão Geral (Empresas)</span>}
+                                  {p.usuarios_perfis && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Usuários / Perfis</span>}
+                                  {p.ajustes && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Ajustes / Supabase</span>}
+                                  {!p.dashboard && !p.agenda && !p.scanner && !p.atestados && !p.empresas && !p.usuarios_perfis && !p.ajustes && (
+                                    <span className="text-red-550 font-bold text-[10px]">Restrição Absoluta (Sem Acesso)</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                {isCoreProfile ? (
+                                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 font-mono">Padrão</span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (confirm('Deseja excluir este perfil? Usuários vinculados perderão as permissões associadas.')) {
+                                        setPerfis(perfis.filter(pf => pf.id !== p.id));
+                                      }
+                                    }}
+                                    className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
+                                    title="Excluir Perfil"
+                                  >
+                                    <Trash className="w-4 h-4 inline" />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -2193,25 +2431,47 @@ CREATE TABLE IF NOT EXISTS public.licitacoes (
                 />
               </div>
               <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">E-mail Corporativo</label>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">E-mail Corporativo (Login)</label>
                 <input 
-                  type="email" 
+                  type="text" 
                   value={newUserEmail}
                   onChange={e => setNewUserEmail(e.target.value)}
                   className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
-                  placeholder="joao.silva@empresa.com.br"
+                  placeholder="joao.silva@empresa.com.br ou login"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Senha Corporativa</label>
+                <input 
+                  type="password" 
+                  value={newUserPassword}
+                  onChange={e => setNewUserPassword(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
+                  placeholder="Digite a senha temporária"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Perfil de Acesso</label>
                 <select 
-                  value={newUserRole}
-                  onChange={e => setNewUserRole(e.target.value as any)}
-                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500"
+                  value={newUserProfileId}
+                  onChange={e => setNewUserProfileId(e.target.value)}
+                  className="w-full text-sm bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500 font-semibold"
                 >
-                  <option value="Administrador">Administrador</option>
-                  <option value="Analista">Analista de Licitações</option>
-                  <option value="Diretor">Diretor Comercial</option>
+                  {perfis.map(p => (
+                    <option key={p.id} value={p.id}>{p.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Empresa Cadastrada</label>
+                <select 
+                  value={newUserCompanyKey}
+                  onChange={e => setNewUserCompanyKey(e.target.value)}
+                  className="w-full text-sm bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500 font-semibold"
+                >
+                  {empresas.map(emp => (
+                    <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -2225,10 +2485,85 @@ CREATE TABLE IF NOT EXISTS public.licitacoes (
               </button>
               <button 
                 onClick={handleAddUser}
-                className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition shadow-sm"
+                className="px-4 py-2 text-sm text-white rounded font-semibold transition shadow-sm"
                 style={{ backgroundColor: primaryColor }}
               >
                 Salvar Usuário
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- ADD PROFILE DIALOG MODAL --- */}
+      {showAddProfileModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-xl max-w-md w-full gap-4 flex flex-col shadow-2xl border border-slate-150 animate-fade-in font-sans">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-slate-800 text-sm">Criar Perfil de Acesso</h3>
+              <button onClick={() => setShowAddProfileModal(false)}><X className="w-5 h-5 text-slate-400 hover:text-slate-600" /></button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome do Perfil</label>
+                <input 
+                  type="text" 
+                  value={newProfileName}
+                  onChange={e => setNewProfileName(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
+                  placeholder="Ex: Auditor Externo"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Habilitar Módulos</label>
+                <div className="space-y-2 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileDashboard} onChange={e => setNewProfileDashboard(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                    Painel Geral e Controle de Licitações
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileAgenda} onChange={e => setNewProfileAgenda(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                    Calendário de Editais e Prazos
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileScanner} onChange={e => setNewProfileScanner(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                    Scanner Inteligente com Inteligência Artificial
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileAtestados} onChange={e => setNewProfileAtestados(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
+                    Biblioteca de Atestados Técnicos
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileEmpresas} onChange={e => setNewProfileEmpresas(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
+                    Gestão Geral de Empresas
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileUsuariosPerfis} onChange={e => setNewProfileUsuariosPerfis(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
+                    Gestão de Perfis de Acesso e Usuários
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input type="checkbox" checked={newProfileAjustes} onChange={e => setNewProfileAjustes(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
+                    Configurações do Sistema e Supabase
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+              <button 
+                onClick={() => setShowAddProfileModal(false)}
+                className="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded font-semibold transition"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleAddProfile}
+                className="px-4 py-2 text-sm text-white rounded font-semibold transition shadow-sm"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Criar Perfil
               </button>
             </div>
           </div>
