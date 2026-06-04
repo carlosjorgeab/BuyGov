@@ -144,6 +144,17 @@ function generateGuid(prefix = '') {
   return `${prefix}${uniq}`;
 }
 
+// Helper to map UI-friendly Font names to concrete CSS font stack
+function getFontFamily(fontName: string) {
+  switch (fontName) {
+    case 'Inter': return "'Inter', sans-serif";
+    case 'Fira Code': return "'Fira Code', monospace";
+    case 'Georgia': return "Georgia, serif";
+    case 'Space Grotesk': return "'Space Grotesk', sans-serif";
+    default: return "'Work Sans', sans-serif";
+  }
+}
+
 export default function Home() {
   // --- CLIENT PERSISTED DATABASE OR MOCK STATE ---
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -163,6 +174,12 @@ export default function Home() {
   // Styling Customization
   const [primaryColor, setPrimaryColor] = useState('#059669'); // Emerald tone mimicking Democracia Digital
   const [borderColor, setBorderColor] = useState('#eceef0');
+  const [appBgColor, setAppBgColor] = useState('#F8FAFC');
+  const [panelBgColor, setPanelBgColor] = useState('#FFFFFF');
+  const [panelBorderColor, setPanelBorderColor] = useState('#ECEEF0');
+  const [panelBorderWidth, setPanelBorderWidth] = useState(1);
+  const [systemFont, setSystemFont] = useState('Work Sans');
+  const [fontSizeScale, setFontSizeScale] = useState<'small' | 'normal' | 'large' | 'xlarge'>('normal');
 
   // Timeout settings
   const [timeoutMinutes, setTimeoutMinutes] = useState(15);
@@ -1002,7 +1019,46 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 transition-colors" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-slate-900 transition-colors" style={{ fontFamily: getFontFamily(systemFont) }}>
+      <style dangerouslySetInnerHTML={{__html: `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;700&family=Georgia&display=swap');
+        
+        html {
+          font-size: ${fontSizeScale === 'small' ? '12.5px' : fontSizeScale === 'large' ? '17px' : fontSizeScale === 'xlarge' ? '19.5px' : '15px'} !important;
+        }
+        body, .bg-slate-50, .bg-\\[\\#F8FAFC\\], .min-h-screen.bg-\\[\\#F8FAFC\\] {
+          background-color: ${appBgColor} !important;
+        }
+        .bg-white, .bg-slate-50\\/50 {
+          background-color: ${panelBgColor} !important;
+        }
+        /* Style standard panel borders */
+        .border, .border-slate-100, .border-slate-150, .border-slate-200, .border-slate-300, .border-\\[\\#eceef0\\] {
+          border-color: ${panelBorderColor} !important;
+          border-width: ${panelBorderWidth}px !important;
+        }
+        /* Ensure table header backgrounds remain pleasant */
+        .bg-slate-50, .hover\\:bg-slate-50\\/50:hover, .hover\\:bg-slate-50:hover {
+          background-color: ${appBgColor === '#FFFFFF' || appBgColor === '#ffffff' ? '#F1F5F9' : appBgColor} !important;
+        }
+        /* Correct text colors for dark themes dynamically to keep contrast high */
+        ${(appBgColor === '#0B0F19' || appBgColor === '#000000' || panelBgColor === '#161F30' || panelBgColor === '#111111') ? `
+          .text-slate-800, .text-slate-700, .text-slate-900, .text-slate-600 {
+            color: #F1F5F9 !important;
+          }
+          .text-slate-500, .text-slate-400 {
+            color: #94A3B8 !important;
+          }
+          label, h1, h2, h3, h4, h5, th, span, p, td {
+            color: #F1F5F9 !important;
+          }
+          input, select, textarea {
+            background-color: ${appBgColor} !important;
+            color: #F1F5F9 !important;
+            border-color: ${panelBorderColor} !important;
+          }
+        ` : ''}
+      `}} />
       
       {/* --- DESKTOP FIXED SIDEBAR NAVIGATION --- */}
       <aside className="hidden md:flex min-w-[260px] max-w-[260px] bg-[#0F172A] flex-col text-slate-300 relative z-40 border-r border-slate-800" style={{ backgroundColor: primaryColor }}>
@@ -3656,7 +3712,7 @@ export default function Home() {
                   Configurações Centralizadas
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Gerencie preferências de notificação corporativa, repositório de documentos base e personalização de cores.
+                  Gerencie preferências de notificação corporativa, repositório de documentos base e personalização do sistema.
                 </p>
               </div>
 
@@ -3666,13 +3722,93 @@ export default function Home() {
                 {/* Visual styling and Session controls column */}
                 <div className="lg:col-span-4 space-y-6">
                   
-                  {/* Styling customizers (Requirement 4.f personalization) */}
+                  {/* Styling customizers (Requirement 3: customization of background, panels, borders, fonts) */}
                   <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
                     <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                      <SlidersHorizontal className="w-4 h-4 text-slate-600" /> Personalização de Cores
+                       <SlidersHorizontal className="w-4 h-4 text-slate-600" /> Personalização do Sistema
                     </h3>
                     
-                    <div className="space-y-3 text-xs">
+                    <div className="space-y-4 text-xs animate-fade-in">
+                      {/* Theme Presets (Quick Themes) */}
+                      <div>
+                        <span className="block font-semibold text-slate-700 mb-1.5">Temas de Interface Rápidos:</span>
+                        <div className="grid grid-cols-2 gap-1.5 pb-2">
+                          <button
+                            onClick={() => {
+                              setPrimaryColor('#059669');
+                              setAppBgColor('#F8FAFC');
+                              setPanelBgColor('#FFFFFF');
+                              setPanelBorderColor('#ECEEF0');
+                              setPanelBorderWidth(1);
+                              setSystemFont('Work Sans');
+                              setFontSizeScale('normal');
+                            }}
+                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
+                          >
+                            🟢 Democracia Digital
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPrimaryColor('#10B981');
+                              setAppBgColor('#0B0F19');
+                              setPanelBgColor('#161F30');
+                              setPanelBorderColor('#24324D');
+                              setPanelBorderWidth(1);
+                              setSystemFont('Inter');
+                              setFontSizeScale('normal');
+                            }}
+                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
+                          >
+                            🌑 Dark Mode Pro
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPrimaryColor('#1E40AF');
+                              setAppBgColor('#F1F5F9');
+                              setPanelBgColor('#FFFFFF');
+                              setPanelBorderColor('#D1D5DB');
+                              setPanelBorderWidth(1);
+                              setSystemFont('Space Grotesk');
+                              setFontSizeScale('normal');
+                            }}
+                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
+                          >
+                            🔵 Clássico Federal
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPrimaryColor('#7C2D12');
+                              setAppBgColor('#FAF8F5');
+                              setPanelBgColor('#FFFDFB');
+                              setPanelBorderColor('#EFEAE2');
+                              setPanelBorderWidth(2);
+                              setSystemFont('Georgia');
+                              setFontSizeScale('large');
+                            }}
+                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
+                          >
+                            📜 Warm Ivory
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPrimaryColor('#22C55E');
+                              setAppBgColor('#000000');
+                              setPanelBgColor('#111111');
+                              setPanelBorderColor('#22C55E');
+                              setPanelBorderWidth(2);
+                              setSystemFont('Fira Code');
+                              setFontSizeScale('large');
+                            }}
+                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition col-span-2 cursor-pointer"
+                          >
+                            ⚡ Retro Cyber Terminal
+                          </button>
+                        </div>
+                      </div>
+
+                      <hr className="border-slate-100" />
+
+                      {/* Primary Color Picker */}
                       <div>
                         <label className="block font-semibold text-slate-600 mb-1">Cor Primária do Sistema:</label>
                         <div className="flex items-center gap-2">
@@ -3686,15 +3822,95 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <div className="pt-2">
-                        <label className="block text-slate-400 text-[10.5px]">Paleta de Cores (Democracia Digital):</label>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          <button onClick={() => setPrimaryColor('#059669')} className="w-5 h-5 rounded-full bg-emerald-600 border border-slate-200" title="Verde Esmeralda"></button>
-                          <button onClick={() => setPrimaryColor('#0F172A')} className="w-5 h-5 rounded-full bg-slate-900 border border-slate-200" title="Azul Meia-Noite"></button>
-                          <button onClick={() => setPrimaryColor('#2563EB')} className="w-5 h-5 rounded-full bg-blue-600 border border-slate-200" title="Azul Royal"></button>
-                          <button onClick={() => setPrimaryColor('#DC2626')} className="w-5 h-5 rounded-full bg-red-600 border border-slate-200" title="Vermelho Vibrante"></button>
-                          <button onClick={() => setPrimaryColor('#7C3AED')} className="w-5 h-5 rounded-full bg-violet-600 border border-slate-200" title="Roxo Ametista"></button>
+                      {/* App Background Color Picker */}
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">Cor do Fundo do App:</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={appBgColor}
+                            onChange={(e) => setAppBgColor(e.target.value)}
+                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                          <span className="font-mono text-slate-500 font-bold">{appBgColor}</span>
                         </div>
+                      </div>
+
+                      {/* Panel Background Color Picker */}
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">Cor dos Painéis (Cards):</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={panelBgColor}
+                            onChange={(e) => setPanelBgColor(e.target.value)}
+                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                          <span className="font-mono text-slate-500 font-bold">{panelBgColor}</span>
+                        </div>
+                      </div>
+
+                      {/* Panel Border Color Picker */}
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">Cor de Borda dos Painéis:</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={panelBorderColor}
+                            onChange={(e) => setPanelBorderColor(e.target.value)}
+                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
+                          />
+                          <span className="font-mono text-slate-500 font-bold">{panelBorderColor}</span>
+                        </div>
+                      </div>
+
+                      {/* Panel Border Width Slider */}
+                      <div>
+                        <div className="flex justify-between items-center text-slate-600 font-semibold mb-1">
+                          <span>Espessura das Bordas:</span>
+                          <span className="font-mono font-bold text-slate-750">{panelBorderWidth}px</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="5"
+                          value={panelBorderWidth}
+                          onChange={(e) => setPanelBorderWidth(Number(e.target.value))}
+                          className="w-full accent-emerald-600 cursor-pointer"
+                        />
+                      </div>
+
+                      <hr className="border-slate-100" />
+
+                      {/* System Font Family Picker */}
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">Estilo de Fonte (Família):</label>
+                        <select
+                          value={systemFont}
+                          onChange={(e) => setSystemFont(e.target.value)}
+                          className="w-full py-1.5 px-2 bg-slate-50 border border-slate-200 rounded text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+                        >
+                          <option value="Work Sans">Work Sans (Padrão)</option>
+                          <option value="Inter">Inter (Moderna)</option>
+                          <option value="Space Grotesk">Space Grotesk (Tech)</option>
+                          <option value="Georgia">Georgia (Serifada / Clássica)</option>
+                          <option value="Fira Code">Fira Code (Código / Mono)</option>
+                        </select>
+                      </div>
+
+                      {/* System Font Size scale Picker */}
+                      <div>
+                        <label className="block font-semibold text-slate-600 mb-1">Tamanho Global de Fonte:</label>
+                        <select
+                          value={fontSizeScale}
+                          onChange={(e) => setFontSizeScale(e.target.value as any)}
+                          className="w-full py-1.5 px-2 bg-slate-50 border border-slate-200 rounded text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
+                        >
+                          <option value="small">Pequeno</option>
+                          <option value="normal">Normal (Padrão)</option>
+                          <option value="large">Grande</option>
+                          <option value="xlarge">Muito Grande</option>
+                        </select>
                       </div>
                     </div>
                   </div>
