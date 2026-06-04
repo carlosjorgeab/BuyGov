@@ -197,7 +197,7 @@ export default function Home() {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
 
   // Active Nav Tab state
-  const [activeTab, setActiveTab] = useState<'visao_geral' | 'visao_mapa' | 'adesao_edital' | 'emendas' | 'projetos' | 'editais' | 'ministerios' | 'partidos' | 'deputados' | 'areas_tematicas' | 'relatorios' | 'perfis' | 'usuarios' | 'configuracoes'>('visao_geral');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'ajustes'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Supabase connection setting state
@@ -545,7 +545,7 @@ export default function Home() {
     if (user.email.toLowerCase().trim() === 'admin') {
       // General admin can always switch and see all companies
       setActiveCompanyKey('LICITATECH');
-      setActiveTab('visao_geral');
+      setActiveTab('dashboard');
     } else if (user.chave_empresa) {
       // For general users, automatically load their company and lock it
       setActiveCompanyKey(user.chave_empresa);
@@ -553,16 +553,16 @@ export default function Home() {
       // Determine their first permitted tab
       const profile = perfis.find(p => p.id === user.perfilId);
       if (profile) {
-        if (profile.dashboard) setActiveTab('visao_geral');
-        else if (profile.agenda) setActiveTab('visao_geral');
-        else if (profile.scanner) setActiveTab('visao_geral');
-        else if (profile.atestados) setActiveTab('visao_geral');
-        else if (profile.empresas) setActiveTab('visao_geral');
+        if (profile.dashboard) setActiveTab('dashboard');
+        else if (profile.agenda) setActiveTab('dashboard');
+        else if (profile.scanner) setActiveTab('dashboard');
+        else if (profile.atestados) setActiveTab('dashboard');
+        else if (profile.empresas) setActiveTab('dashboard');
         else if (profile.usuarios_perfis) setActiveTab('usuarios');
-        else if (profile.ajustes) setActiveTab('configuracoes');
+        else if (profile.ajustes) setActiveTab('ajustes');
       } else {
         // Fallback default
-        setActiveTab('visao_geral');
+        setActiveTab('dashboard');
       }
     }
 
@@ -943,7 +943,7 @@ export default function Home() {
     setLicitacoes([freshLicitacao, ...licitacoes]);
     alert("O edital analisado foi importado com sucesso na sua base de Licitações!");
     setScannerResult(null);
-    setActiveTab('visao_geral');
+    setActiveTab('dashboard');
   };
 
   // Format dynamic expiration display
@@ -1072,666 +1072,381 @@ export default function Home() {
       `}} />
       
       {/* --- DESKTOP FIXED SIDEBAR NAVIGATION --- */}
-      <aside className="hidden md:flex min-w-[260px] max-w-[260px] bg-slate-50 flex-col text-slate-600 relative z-40 border-r border-slate-200 shadow-sm">
+      <aside className="hidden md:flex min-w-[260px] max-w-[260px] flex-col relative z-40 border-r shadow-sm transition-colors" style={{ backgroundColor: panelBgColor === '#FFFFFF' ? '#0F172A' : panelBgColor, borderColor: panelBorderColor }}>
         {/* Profile Card */}
-        <div className="flex flex-col items-center pt-10 pb-6 border-b border-slate-200/50">
-          <div className="w-24 h-24 relative mb-3 rounded-full overflow-hidden border-4 border-white shadow-sm">
-            <Image src="https://picsum.photos/seed/carol/200/200" alt="Carol Dartora" fill className="object-cover" />
+        <div className="flex flex-col items-center pt-8 pb-6 border-b border-white/10">
+          <div className="w-16 h-16 relative mb-3 bg-white rounded-xl shadow p-2 flex items-center justify-center">
+            <div className="w-full h-full relative"><Image src="/buygov_logo.png" alt="BuyGov" fill className="object-contain" /></div>
           </div>
-          <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">Carol Dartora</h2>
-          <p className="text-xs font-bold text-[#E60000] uppercase tracking-wider mt-1">PT - PR</p>
+          <h2 className="text-lg font-bold text-white tracking-tight">BuyGov Corp</h2>
+          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mt-1">{currentCompany?.nome || activeCompanyKey}</p>
         </div>
 
         {/* Sidebar Nav Links */}
         <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
           {[
-            { id: 'visao_geral', label: 'Visão Geral', icon: LayoutDashboard },
-            { id: 'visao_mapa', label: 'Visão Mapa', icon: MapPin },
-            { id: 'adesao_edital', label: 'Adesão Edital', icon: FileText },
-            { id: 'emendas', label: 'Emendas', icon: Banknote },
-            { id: 'projetos', label: 'Projetos', icon: Layers },
-            { id: 'editais', label: 'Editais', icon: FileText },
-            { id: 'ministerios', label: 'Ministérios', icon: Landmark },
-            { id: 'partidos', label: 'Partidos', icon: Flag },
-            { id: 'deputados', label: 'Deputados', icon: Users },
-            { id: 'areas_tematicas', label: 'Áreas Temáticas', icon: Tags },
-            { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
-            { id: 'perfis', label: 'Perfis', icon: Shield },
-            { id: 'usuarios', label: 'Usuários', icon: User },
-          ].map(item => (
+            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { id: 'agenda', label: 'Agenda & Prazos', icon: Calendar },
+            { id: 'scanner', label: 'Scanner Inteligente', icon: Search },
+            { id: 'atestados', label: 'Atestados Técnicos', icon: Shield },
+            { id: 'empresas', label: 'Empresas & Filiais', icon: Building },
+            { id: 'usuarios', label: 'Usuários & Permissões', icon: Users },
+          ].map(item => {
+            if (!hasTabPermission(item.id)) return null;
+            return (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id as any)}
               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
                 activeTab === item.id 
-                  ? 'bg-red-50 text-[#E60000] border-l-2 border-[#E60000]' 
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 border-l-2 border-transparent'
+                  ? 'bg-emerald-500/20 text-emerald-400' 
+                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
               }`}
             >
-              <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+              <item.icon className="w-4 h-4 shrink-0 stroke-2" />
               <span>{item.label}</span>
             </button>
-          ))}
+          )})}
 
-          <div className="pt-6 pb-2">
-            <button onClick={() => setActiveTab('configuracoes')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-all border-l-2 border-transparent">
-              <Settings className="w-4 h-4 shrink-0 stroke-2" />
-              <span>Configurações</span>
-            </button>
-          </div>
+          {hasTabPermission('ajustes') && (
+            <div className="pt-6 pb-2">
+              <button 
+               onClick={() => setActiveTab('ajustes')} 
+               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'ajustes' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>
+                <Settings className="w-4 h-4 shrink-0 stroke-2" />
+                <span>Configurações</span>
+              </button>
+            </div>
+          )}
         </nav>
 
         {/* Action Buttons & Bottom section */}
         <div className="p-4 flex flex-col gap-2 mt-auto pb-6">
-          <button className="w-full py-2.5 bg-[#E60000] hover:bg-red-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm">
-            <Plus className="w-4 h-4 stroke-[3px]" /> NOVA EMENDA
-          </button>
-          <button className="w-full py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm">
-            <Plus className="w-4 h-4 stroke-[3px]" /> NOVO PROJETO
+          <button onClick={handleSupabaseSync} disabled={isSyncing} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm disabled:opacity-50">
+            {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />} {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
           </button>
           <button
             onClick={handleLogout}
-            className="w-full mt-4 py-2 text-slate-400 hover:text-slate-800 text-sm font-semibold flex items-center justify-start px-2 gap-2 transition"
+            className="w-full mt-4 py-2 text-slate-400 hover:text-white text-sm font-semibold flex items-center justify-start px-2 gap-2 transition"
           >
-            <LogOut className="w-4 h-4" /> Sair
+            <LogOut className="w-4 h-4" /> Finalizar Sessão
           </button>
         </div>
       </aside>
 
-      {/* --- MOBILE VIEW NAVBAR TOP --- */}
-      <header className="md:hidden sticky top-0 w-full z-45 bg-white text-slate-800 border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-1 focus:outline-none hover:bg-slate-100 rounded transition">
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-          <h1 className="font-bold tracking-tight">Democracia Digital</h1>
-        </div>
-      </header>
-
-      {/* --- MOBILE DROPDOWN MENU --- */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden w-full bg-slate-50 border-b border-slate-200 text-slate-700 z-40 flex flex-col shadow-xl overflow-hidden font-sans"
-          >
-            <div className="px-4 py-3 space-y-1">
-              {['visao_geral', 'visao_mapa', 'adesao_edital', 'emendas', 'projetos', 'editais', 'ministerios', 'partidos', 'deputados', 'areas_tematicas', 'relatorios', 'perfis', 'usuarios'].map(id => (
-                <button key={id} onClick={() => { setActiveTab(id as any); setMobileMenuOpen(false); }} className="w-full text-left py-2 font-semibold">
-                  {id.replace('_', ' ').toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* --- DESKTOP HIGH-DENSITY HEADERS AND CONTENT WRAPPERS --- */}
-      <main className="flex-grow flex flex-col min-h-screen bg-[#F9FAFB]">
+      <main className="flex-grow flex flex-col min-h-screen bg-[#F8FAFC] transition-colors">
         {/* Universal Desk/Header */}
-        <header className="hidden md:flex h-[72px] bg-white border-b border-slate-200 px-6 items-center justify-between shrink-0 sticky top-0 z-30">
+        <header className="hidden md:flex h-[72px] bg-white border-b px-6 items-center justify-between shrink-0 sticky top-0 z-30 transition-colors" style={{ backgroundColor: panelBgColor, borderColor: panelBorderColor }}>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 flex items-center justify-center -ml-2">
-                <svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 0V40M0 20H40" stroke="#0F172A" strokeWidth="6" />
-                  <path d="M20 0L40 20L20 40L0 20L20 0Z" stroke="#E60000" strokeWidth="6" />
-                  <circle cx="20" cy="20" r="10" fill="#0EA5E9" />
-                </svg>
-              </div>
-              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight flex items-center">
-                DEMOCRACIA DIGITAL 
-                <span className="text-slate-300 mx-3 font-normal text-2xl leading-none">|</span>
-                <span className="text-slate-500 font-medium text-[15px]">Painel do Parlamentar</span>
-              </h1>
-            </div>
+            <h1 className="text-xl font-bold tracking-tight flex items-center gap-2" style={{ color: primaryColor }}>
+              <Building className="w-5 h-5" /> 
+              Plataforma de Compras Licitatech
+            </h1>
           </div>
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4">
-              <select className="border border-slate-200 bg-white text-slate-700 text-sm font-bold py-2.5 px-4 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm min-w-[200px]">
-                <option>Carol Dartora (PT-PR)</option>
+              <select value={activeCompanyKey} onChange={(e) => setActiveCompanyKey(e.target.value)} disabled={currentUser?.email !== 'admin' && currentUser?.chave_empresa !== 'ALL'} className="border bg-slate-50 text-slate-700 text-sm font-bold py-2 px-3 rounded-full focus:outline-none disabled:opacity-60" style={{ borderColor: panelBorderColor }}>
+                <option value="ALL" disabled>-- Multi-Tenancy --</option>
+                {empresas.map(e => (
+                  <option key={e.chave_empresa} value={e.chave_empresa}>{e.nome}</option>
+                ))}
               </select>
-              <div className="relative shadow-sm rounded-full">
-                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Buscar emendas e projetos..." 
-                  className="pl-10 pr-4 py-2.5 w-72 border border-slate-200 bg-slate-50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:bg-white transition-all font-medium"
-                />
-              </div>
             </div>
             
-            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden shrink-0">
-               <User className="w-6 h-6 text-white/90" />
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-bold text-slate-800">{currentUser?.nome}</p>
+                <p className="text-xs font-semibold text-emerald-600">{perfis.find(p => p.id === currentUser?.perfilId)?.nome}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm" style={{ backgroundColor: primaryColor }}>
+                 {currentUser?.nome?.charAt(0).toUpperCase()}
+              </div>
             </div>
           </div>
         </header>
 
         {/* --- MAIN INNER CONTENT WRAPPER --- */}
-        <div className="flex-grow overflow-y-auto px-4 md:px-6 py-5 mx-auto w-full max-w-[1600px] relative">
+        <div className="flex-grow overflow-y-auto px-4 md:px-8 py-6 w-full max-w-[1400px] mx-auto relative">
           <AnimatePresence mode="wait">
           
-          {/* VISÃO GERAL */}
-          {activeTab === 'visao_geral' && (
+          {/* DASHBOARD */}
+          {activeTab === 'dashboard' && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end">
                 <div>
-                  <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">VISÃO CONSOLIDADA</h3>
-                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Dep. Carol Dartora</h2>
-                  <p className="text-sm text-slate-500 font-medium">Gerenciamento de emendas e projetos parlamentares - 56ª Legislatura</p>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-800">Visão Geral</h2>
+                  <p className="text-sm text-slate-500 font-medium">Acompanhamento consolidado de {currentCompany?.nome}</p>
                 </div>
-                <div className="flex gap-3">
-                  <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:bg-slate-50">
-                    <Share2 className="w-4 h-4" /> Compartilhar
+                {currentUser?.email === 'admin' && (
+                  <button onClick={() => setIsAddingBid(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                    <Plus className="w-4 h-4" /> Novo Certame
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-red-700">
-                    <Download className="w-4 h-4" /> Gerar PDF
-                  </button>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-8">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                    <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> FILTROS INTELIGENTES</span>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                      <Calendar className="w-4 h-4 text-red-500" /> ANO <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full text-xs font-bold border border-slate-200">2026</span> <span className="text-red-600 font-bold text-xs uppercase tracking-wider">TODOS</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
-                      <MapPin className="w-4 h-4 text-slate-400" /> Município: Todos <ChevronDown className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
-                      <Tags className="w-4 h-4 text-slate-400" /> Verba: Todas <ChevronDown className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
-                      <Layers className="w-4 h-4 text-slate-400" /> Categoria: Todas <ChevronDown className="w-3.5 h-3.5" />
-                    </div>
-                  </div>
-                </div>
-                <button className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1">
-                  <RefreshCw className="w-3 h-3" /> RESETAR FILTROS
-                </button>
+                )}
               </div>
 
               {/* KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-r from-red-50 to-white p-5 rounded-xl border border-red-100 shadow-sm relative overflow-hidden">
-                  <div className="absolute right-0 top-0 h-full w-24 bg-red-100/50 rounded-l-full -mr-12"></div>
-                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">VERBA DESTINADA (TOTAL)</h4>
-                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 25.5M</div>
-                  <div className="mt-3 text-xs font-bold text-red-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Atualizado</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">TOTAL EXECUTADO</h4>
-                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 7.0M</div>
-                  <div className="mt-3 text-xs font-bold text-red-600 flex items-center gap-1"><BarChart3 className="w-3 h-3" /> 27% de execução</div>
-                </div>
-                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">A EMPENHAR</h4>
-                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 18.6M</div>
-                  <div className="mt-3 text-xs font-medium text-emerald-600 flex items-center gap-1"><Briefcase className="w-3 h-3" /> Disponível para empenho</div>
-                </div>
-                <div className="bg-red-600 p-5 rounded-xl shadow-md text-white">
-                  <h4 className="text-[10px] uppercase font-bold text-red-200 tracking-wider">INICIATIVAS ATIVAS</h4>
-                  <div className="mt-1 text-4xl font-extrabold tracking-tight">5</div>
-                  <div className="mt-2 text-xs font-medium text-white flex items-center gap-1"><Tags className="w-3 h-3" /> Meta de execução acelerada</div>
-                </div>
+                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                   <p className="text-xs font-bold text-slate-500 uppercase">Licitações Analisadas</p>
+                   <h3 className="text-3xl font-extrabold text-slate-800 mt-2">{companyBids.length}</h3>
+                 </div>
+                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                   <p className="text-xs font-bold text-slate-500 uppercase">Atestados Mapeados</p>
+                   <h3 className="text-3xl font-extrabold text-slate-800 mt-2">{companyCerts.length}</h3>
+                 </div>
+                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                   <p className="text-xs font-bold text-slate-500 uppercase">Estimativa Global</p>
+                   <h3 className="text-2xl font-extrabold text-emerald-600 mt-2 tracking-tight">R$ {(companyBids.reduce((a,b)=>a+Number(b.valor_estimado), 0)/1000000).toFixed(1)}M</h3>
+                 </div>
               </div>
 
-              {/* Charts area */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-10">
-                    <h3 className="font-bold text-slate-800">Histórico de Execução</h3>
-                    <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
-                      <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-yellow-400 rounded-sm"></div> Empenhado</span>
-                      <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-red-600 rounded-sm"></div> Pago</span>
-                    </div>
-                  </div>
-                  <div className="h-48 border-b-2 border-slate-100 flex items-end gap-2 justify-between px-2">
-                    {/* Mock Bars */}
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[2%]" /><div className="w-full bg-yellow-400 h-[2%]" /></div>
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[4%]" /><div className="w-full bg-yellow-400 h-[10%]" /></div>
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[15%]" /></div>
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[5%]" /><div className="w-full bg-yellow-400 h-[2%]" /></div>
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[80%]" /></div>
-                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[2%]" /></div>
-                  </div>
-                  <div className="flex justify-between px-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
-                    <span className="w-full text-center">JAN</span><span className="w-full text-center">FEV</span><span className="w-full text-center">MAR</span><span className="w-full text-center">ABR</span><span className="w-full text-center">MAI</span><span className="w-full text-center">JUN</span>
-                  </div>
-                </div>
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center relative">
-                  <div className="w-full flex justify-between absolute top-6 px-6">
-                    <h3 className="font-bold text-slate-800 text-sm">Impacto Social</h3>
-                    <h3 className="text-xs text-slate-500 font-medium">Foco por Área Temática</h3>
-                  </div>
-                  {/* Mock Donut */}
-                  <div className="relative w-40 h-40 mt-6 rounded-full border-[16px] border-slate-100 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-[16px] border-red-600 border-t-transparent border-r-transparent transform -rotate-45"></div>
-                    <div className="absolute inset-0 rounded-full border-[16px] border-blue-600 border-b-transparent border-l-transparent transform rotate-12"></div>
-                    <div className="text-center">
-                       <div className="text-lg font-extrabold text-slate-800">R$ 25.5M</div>
-                       <div className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">TOTAL</div>
-                    </div>
-                  </div>
-                  <div className="w-full mt-10 space-y-3">
-                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600"></div> Saúde</span> <span className="font-bold text-slate-800">59%</span></div>
-                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-600"></div> Educação</span> <span className="font-bold text-slate-800">29%</span></div>
-                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-300"></div> Infraestrutura</span> <span className="font-bold text-slate-800">12%</span></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Table */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-200 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg">Relação de Emendas Parlamentares</h3>
-                    <p className="text-xs text-slate-500 font-medium">Listagem filtrada com base nas seleções do painel</p>
-                  </div>
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" placeholder="Buscar por objeto, beneficiário..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-red-500 focus:outline-none w-72" />
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
-                      <tr>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">DATA</th>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">OBJETO / BENEFICIÁRIO</th>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">MUNICÍPIO</th>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">TIPO / CATEGORIA</th>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">PROJETO VINCULADO</th>
-                        <th className="px-6 py-4 font-bold border-b border-slate-200">VALOR</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      <tr className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-xs font-mono text-slate-500">27/05/2026</td>
-                        <td className="px-6 py-4"><p className="font-bold text-slate-800">CONSTRUÇÃO DE ESCOLAS PÚBLICAS</p><p className="text-xs text-slate-500">Beneficiário: SEDUC</p></td>
-                        <td className="px-6 py-4 font-medium text-slate-800">Campo Mourão - PR</td>
-                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">INDIVIDUAIS (RP 6)</span><span className="text-[10px] text-slate-400 font-semibold">Sem vínculo</span></td>
-                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">R$ 5.800.000,00</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-xs font-mono text-slate-500">22/04/2026</td>
-                        <td className="px-6 py-4"><p className="font-bold text-slate-800">COSTRÇÃO DE UMA SUBESTAÇÃO DE ENERGIA</p><p className="text-xs text-slate-500">Beneficiário: ESCOLA ESTADUAL</p></td>
-                        <td className="px-6 py-4 font-medium text-slate-800">São José dos Pinhais - PR</td>
-                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">DE RELATOR (RP 9)</span><span className="text-[10px] text-red-500 font-semibold">Infraestrutura</span></td>
-                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">R$ 3.000.000,00</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-xs font-mono text-slate-500">12/04/2026</td>
-                        <td className="px-6 py-4"><p className="font-bold text-slate-800">Construção de Posto de Saúde no Bairro Conceição</p><p className="text-xs text-slate-500">Beneficiário: Prefeitura Municipal</p></td>
-                        <td className="px-6 py-4 font-medium text-slate-800">Curitiba - PR</td>
-                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">INDIVIDUAIS (RP 6)</span><span className="text-[10px] text-red-500 font-semibold">Saúde</span></td>
-                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
-                        <td className="px-6 py-4 font-bold text-slate-800">R$ 15.000.000,00</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ADESÃO EDITAL */}
-          {activeTab === 'adesao_edital' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 max-w-4xl mx-auto py-4">
-              <div>
-                <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">NOVA ADESÃO</h3>
-                <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Adesão Edital</h2>
-              </div>
-              <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE O EDITAL</label>
-                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
-                    <option>Selecione um edital...</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE O MINISTÉRIO</label>
-                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
-                    <option>Selecione um ministério...</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE A AÇÃO</label>
-                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
-                    <option>Selecione uma ação...</option>
-                  </select>
-                </div>
-                <div className="pt-2">
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">A) NOME DA ENTIDADE OU ENTE PÚBLICO</label>
-                  <input type="text" className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">B) CNPJ</label>
-                  <input type="text" placeholder="00.000.000/0000-00" className="w-full bg-slate-50 text-slate-400 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
-                </div>
-                
-                <div className="border border-slate-100 rounded-xl p-5 mt-4">
-                  <h4 className="text-xs font-bold text-red-600 tracking-wider uppercase mb-4">CONTATO DA ENTIDADE</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">NOME COMPLETO</label>
-                      <input type="text" placeholder="Nome do responsável" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">TELEFONE</label>
-                      <input type="text" placeholder="(00) 00000-0000" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">E-MAIL</label>
-                      <input type="email" placeholder="contato@entidade.org" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">C) NOME DO PROJETO</label>
-                  <input type="text" className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">D) RESUMO / OBJETO DO PROJETO (NO MÁXIMO 3 LINHAS)</label>
-                  <textarea rows={3} className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20"></textarea>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">E) DESCRIÇÃO DE COMO PRETENDE DESENVOLVER O PROJETO</label>
-                  <textarea rows={5} className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20"></textarea>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">COMO FICOU SABENDO?</label>
-                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
-                    <option>Selecione uma opção...</option>
-                  </select>
-                </div>
-
-              </div>
-            </motion.div>
-          )}
-
-          {/* EMENDAS */}
-          {activeTab === 'emendas' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
-                <div>
-                  <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">GESTÃO FINANCEIRA</h3>
-                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Minhas Emendas</h2>
-                  <p className="text-sm text-slate-500 font-medium">Acompanhamento de emendas e orçamentos destinados</p>
-                </div>
-                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
-                  <Plus className="w-4 h-4 stroke-[3px]" /> Nova Emenda
-                </button>
-              </div>
-
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-200">
-                  <div className="relative w-64">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input type="text" placeholder="Buscar emendas..." className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 bg-slate-50" />
-                  </div>
-                </div>
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+              <div className="bg-white p-6 rounded-xl border shadow-sm mt-6" style={{ borderColor: panelBorderColor }}>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Certames Recentes</h3>
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50/50 text-slate-500 text-xs font-bold">
                     <tr>
-                      <th className="px-5 py-4 border-b border-slate-200">DATA</th>
-                      <th className="px-5 py-4 border-b border-slate-200">OBJETO</th>
-                      <th className="px-5 py-4 border-b border-slate-200">MUNICÍPIO</th>
-                      <th className="px-5 py-4 border-b border-slate-200">BENEFICIÁRIO</th>
-                      <th className="px-5 py-4 border-b border-slate-200">AUTOR</th>
-                      <th className="px-5 py-4 border-b border-slate-200">TIPO</th>
-                      <th className="px-5 py-4 border-b border-slate-200">PROJETO VINCULADO</th>
-                      <th className="px-5 py-4 border-b border-slate-200">VALOR</th>
-                      <th className="px-5 py-4 border-b border-slate-200">AÇÕES</th>
+                      <th className="px-4 py-3 border-b">Órgão</th>
+                      <th className="px-4 py-3 border-b">Objeto</th>
+                      <th className="px-4 py-3 border-b">Data</th>
+                      <th className="px-4 py-3 border-b">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-xs">
-                    {[
-                      { date: '27/05/2026', title: 'CONSTRUÇÃO DE ESCOLAS PÚBLICAS', city: 'Campo Mourão - PR', ben: 'SEDUC', author: 'Dep. Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 5.800.000,00' },
-                      { date: '11/04/2026', title: 'Construção de Centro de Assistência Psicosocial', city: 'Cafeara - PR', ben: 'Prefeitura Municipal de Rio Grande', author: 'Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 1.350.000,00' },
-                      { date: '22/04/2026', title: 'COSTRÇÃO DE UMA SUBESTAÇÃO DE ENERGIA', city: 'São José dos Pinhais - PR', ben: 'ESCOLA ESTADUAL', author: 'DEP. CAROL DARTORA', type: 'DE RELATOR (RP 9)', proj: '-', val: 'R$ 3.000.000,00' },
-                      { date: '12/04/2026', title: 'Construção de Posto de Saúde no Bairro Conceição', city: 'Curitiba - PR', ben: 'Prefeitura Municipal', author: 'Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 15.000.000,00' },
-                      { date: '30/03/2026', title: 'Reforma e Ampliação de Escolas Municipais', city: 'Antônio Olinto - PR', ben: 'Porto Alegre - RS', author: 'DEP. CAROL DARTORA', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 1.365.600,00' },
-                      { date: '30/05/2026', title: 'REFORMAS DE ESCOLAS MUNICIPAIS', city: 'Centenário do Sul - PR', ben: 'ESCOLAS MUNICIPAIS DO ESTADO', author: 'DEP. CAROL DARTORA', type: 'DE BANCADA (RP 7)', proj: '-', val: 'R$ 350.000,00' },
-                    ].map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50">
-                        <td className="px-5 py-4 text-[11px] font-mono text-slate-500">{row.date}</td>
-                        <td className="px-5 py-4 font-bold max-w-[200px] truncate" title={row.title}>{row.title}</td>
-                        <td className="px-5 py-4">{row.city}</td>
-                        <td className="px-5 py-4 max-w-[150px] truncate" title={row.ben}>{row.ben}</td>
-                        <td className="px-5 py-4">{row.author}</td>
-                        <td className="px-5 py-4"><span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200">{row.type}</span></td>
-                        <td className="px-5 py-4 text-slate-400">{row.proj}</td>
-                        <td className="px-5 py-4 font-bold">{row.val}</td>
-                        <td className="px-5 py-4 flex items-center gap-3">
-                          <button className="text-slate-400 hover:text-blue-600"><RefreshCw className="w-3.5 h-3.5" /></button>
-                          <button className="text-slate-400 hover:text-slate-800"><Edit className="w-3.5 h-3.5" /></button>
-                          <button className="text-slate-400 hover:text-red-600"><Trash className="w-3.5 h-3.5" /></button>
-                        </td>
+                  <tbody>
+                    {companyBids.slice(0, 5).map(bid => (
+                      <tr key={bid.id} className="border-b last:border-0 hover:bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-800">{bid.orgao}</td>
+                        <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
+                        <td className="px-4 py-3 text-slate-500">{bid.created_at}</td>
+                        <td className="px-4 py-3 text-emerald-600 font-bold">{bid.status}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* AGENDA E PRAZOS */}
+          {activeTab === 'agenda' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Calendar className="text-emerald-600" /> Agenda e Prazos</h2>
+                  <p className="text-sm text-slate-500 font-medium">Controle de vencimentos de propostas e aberturas</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-xl border p-6 shadow-sm min-h-[400px]" style={{ borderColor: panelBorderColor }}>
+                 {companyBids.length === 0 ? (
+                   <div className="text-center text-slate-400 py-10">Nenhum evento agendado.</div>
+                 ) : (
+                   <div className="space-y-4">
+                     {companyBids.map(bid => (
+                       <div key={bid.id} className="flex items-center gap-4 p-4 border border-slate-100 rounded-lg hover:border-emerald-200 transition-colors">
+                         <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-lg flex flex-col items-center justify-center shrink-0">
+                           <span className="text-xs font-bold uppercase">{new Date(bid.prazo_proposta).toLocaleString('pt-BR', { month: 'short' })}</span>
+                           <span className="text-xl font-extrabold">{new Date(bid.prazo_proposta).getDate()}</span>
+                         </div>
+                         <div>
+                           <h4 className="font-bold text-slate-800">{bid.orgao} - {bid.modalidade}</h4>
+                           <p className="text-sm text-slate-500 mt-1 line-clamp-1">{bid.objeto}</p>
+                           <p className="text-xs font-semibold text-red-500 mt-2">Fechamento Proposta: {bid.prazo_proposta}</p>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* SCANNER INTELIGENTE E ATESTADOS */}
+          {activeTab === 'scanner' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Search className="text-emerald-600" /> Scanner Inteligente de Editais</h2>
+                  <p className="text-sm text-slate-500 font-medium">Extraia dados e valide requisitos com Inteligência Artificial</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4">Novo Processamento</h3>
+                   <textarea rows={10} value={rawScannerText} onChange={(e) => setRawScannerText(e.target.value)} placeholder="Cole o texto do edital aqui..." className="w-full p-4 border text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" style={{ borderColor: panelBorderColor }}></textarea>
+                   <div className="mt-4 flex gap-3">
+                     <button onClick={() => handleTriggerTenderScanner(null)} disabled={scannerIsProcessing} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
+                       {scannerIsProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Executar Scanner IA
+                     </button>
+                   </div>
+                </div>
+                <div className="space-y-6">
+                  {scannerResult && (
+                    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                      <h3 className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2"><Check className="w-5 h-5" /> Resultados do Mapeamento</h3>
+                      <div className="space-y-3 text-sm">
+                        <p><strong className="text-slate-700">Modalidade:</strong> {scannerResult.modalidade}</p>
+                        <p><strong className="text-slate-700">Valor Estimado:</strong> R$ {scannerResult.valor_estimado}</p>
+                        <p><strong className="text-slate-700">Órgão:</strong> {scannerResult.orgao}</p>
+                        <p><strong className="text-slate-700">Documentos:</strong> {scannerResult.documentos_obrigatorios?.join(', ')}</p>
+                      </div>
+                      {!scannerResult.isCertificate && (
+                        <button onClick={applyImportedScannerToBids} className="w-full mt-6 py-2 border border-emerald-500 text-emerald-600 font-bold rounded-md hover:bg-emerald-50 transition-colors">
+                          Importar para Gestão
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ATESTADOS */}
+          {activeTab === 'atestados' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                 <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Shield className="text-emerald-600" /> Acervo Técnico de Atestados</h2>
+                 <button onClick={() => setIsAddingCert(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                    <Plus className="w-4 h-4" /> Cadastrar Atestado
+                 </button>
+              </div>
+              <div className="bg-white rounded-xl border p-6 shadow-sm overflow-x-auto" style={{ borderColor: panelBorderColor }}>
+                 <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                       <tr>
+                          <th className="px-4 py-3 border-b">Atestado / Emissor</th>
+                          <th className="px-4 py-3 border-b">Data</th>
+                          <th className="px-4 py-3 border-b">Itens Técnicos</th>
+                          <th className="px-4 py-3 border-b">Ações</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                       {companyCerts.map((cert) => (
+                          <tr key={cert.id} className="border-b last:border-0 hover:bg-slate-50">
+                            <td className="px-4 py-4">
+                               <p className="font-bold text-slate-800">{cert.nome_atestado}</p>
+                               <p className="text-slate-500 text-xs">{cert.orgao_emissor}</p>
+                            </td>
+                            <td className="px-4 py-4 font-mono text-slate-500 text-xs">{cert.data_emissao}</td>
+                            <td className="px-4 py-4">
+                               <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{cert.itens.length} itens averbados</span>
+                            </td>
+                            <td className="px-4 py-4 flex gap-2">
+                               <button disabled className="text-slate-400 hover:text-emerald-600"><Edit className="w-4 h-4" /></button>
+                               <button onClick={() => handleDeleteCert(cert.id)} className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
+                            </td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* EMPRESAS */}
+          {activeTab === 'empresas' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                 <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Building className="text-emerald-600" /> Gestão de Empresas e Filiais</h2>
+                 <button onClick={() => setIsAddingCompany(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                    <Plus className="w-4 h-4" /> Nova Empresa
+                 </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {empresas.map((emp) => (
+                    <div key={emp.id} className="bg-white rounded-xl border p-5 shadow-sm hover:border-emerald-500 transition-colors cursor-pointer" style={{ borderColor: panelBorderColor }}>
+                       <h3 className="font-bold text-lg text-slate-800">{emp.nome}</h3>
+                       <p className="text-sm text-slate-500 font-mono mt-1">CNPJ: {emp.cnpj}</p>
+                       <p className="text-xs font-bold text-emerald-600 mt-4 uppercase tracking-wider">{emp.chave_empresa}</p>
+                    </div>
+                 ))}
               </div>
             </motion.div>
           )}
 
           {/* USUÁRIOS */}
           {activeTab === 'usuarios' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2"><Users className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CADASTRO DE USUÁRIOS</h2>
-                  <p className="text-sm text-slate-500 font-medium">Gerencie os usuários do sistema e seus acessos</p>
-                </div>
-                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
-                  <Plus className="w-4 h-4 stroke-[3px]" /> Novo Usuário
-                </button>
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                 <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> Cadastro de Usuários</h2>
+                 <button onClick={() => setIsAddingUser(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                    <Plus className="w-4 h-4" /> Novo Usuário
+                 </button>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
-                    <tr>
-                      <th className="px-6 py-4 border-b border-slate-200">E-mail / Usuário</th>
-                      <th className="px-6 py-4 border-b border-slate-200">Perfil</th>
-                      <th className="px-6 py-4 border-b border-slate-200">Deputado</th>
-                      <th className="px-6 py-4 border-b border-slate-200 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-sm">
-                    {[
-                      { email: 'adv.leandroneves@gmail.com', perfil: 'Emendas', dep: 'Carol Dartora' },
-                      { email: 'caroldartora13@gmail.com', perfil: 'Edital', dep: 'Carol Dartora' },
-                      { email: 'carla.deputadacarol@@gmail.com', perfil: 'Padrao', dep: 'Carol Dartora' },
-                      { email: 'franklin', perfil: 'Acesso Total', dep: 'Todos', admin: true },
-                      { email: 'leandrobrasilia13@gmail.com', perfil: 'Emendas', dep: 'Carol Dartora' },
-                      { email: 'carlosjorgeab@gmail.com', perfil: 'Administrador', dep: 'Carol Dartora' },
-                      { email: 'admin', perfil: 'Acesso Total', dep: 'Todos', admin: true },
-                    ].map((u, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-5 font-bold flex items-center gap-3">
-                          {u.email} 
-                          {u.admin && <span className="text-[9px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-black tracking-widest uppercase">ADMIN</span>}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500">{u.perfil}</td>
-                        <td className="px-6 py-4 text-slate-500">{u.dep}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex justify-end gap-3">
-                            <button className="text-slate-400 hover:text-slate-800"><Edit className="w-4 h-4" /></button>
-                            <button className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="bg-white rounded-xl border p-0 shadow-sm overflow-hidden" style={{ borderColor: panelBorderColor }}>
+                 <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                       <tr>
+                          <th className="px-6 py-4 border-b">Usuário</th>
+                          <th className="px-6 py-4 border-b">Perfil</th>
+                          <th className="px-6 py-4 border-b">Empresa Restrita</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                       {usuarios.map((u, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                             <td className="px-6 py-4">
+                               <p className="font-bold text-slate-800">{u.nome}</p>
+                               <p className="text-slate-500 text-xs">{u.email}</p>
+                             </td>
+                             <td className="px-6 py-4 font-semibold text-slate-700">{perfis.find(p=>p.id === u.perfilId)?.nome}</td>
+                             <td className="px-6 py-4 font-mono text-emerald-600">{u.chave_empresa}</td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
               </div>
             </motion.div>
           )}
 
-          {/* PERFIS */}
-          {activeTab === 'perfis' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
-              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2"><Shield className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CADASTRO DE PERFIS</h2>
-                  <p className="text-sm text-slate-500 font-medium">Gerencie os perfis de acesso e suas permissões</p>
-                </div>
-                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
-                  <Plus className="w-4 h-4 stroke-[3px]" /> Novo Perfil
-                </button>
+          {/* AJUSTES */}
+          {activeTab === 'ajustes' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                 <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Settings className="text-emerald-600" /> Ajustes de Sistema</h2>
               </div>
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left text-sm border-collapse">
-                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
-                    <tr>
-                      <th className="px-6 py-4 border-b border-slate-200 w-48">Nome do Perfil</th>
-                      <th className="px-6 py-4 border-b border-slate-200">Permissões</th>
-                      <th className="px-6 py-4 border-b border-slate-200 text-right w-24">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-sm">
-                    {[
-                      { nome: 'Edital', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Cadastro de Ministérios', c:'red'}, {t: 'Cadastro de Editais', c:'red'}] },
-                      { nome: 'Emendas', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Editais', c:'red'}, {t: 'Cadastro de Ministérios', c:'red'}] },
-                      { nome: 'Projetos', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Projetos', c:'red'}] },
-                      { nome: 'Administrador', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Cadastro de Ministérios', c: 'red'}, {t: 'Projetos', c:'red'}, {t: 'Cadastro de Usuários', c:'red'}, {t: 'Configurações', c:'red'}, {t: 'Relatórios', c:'red'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Editais', c:'red'}, {t: 'Cadastro de Perfis', c:'red'}, {t: 'Cadastro de Deputados', c:'red'}, {t: 'Cadastro de Partidos', c:'red'}, {t: 'Cadastro de Áreas Temáticas', c:'red'}] },
-                      { nome: 'Padrao', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Projetos', c:'red'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Ministérios', c:'red'}, {t: 'Cadastro de Editais', c:'red'}] },
-                    ].map((p, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-6 py-5 font-bold align-top">{p.nome}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-2">
-                             {p.perms.map((perm, ix) => (
-                               <span key={ix} className={`px-2.5 py-1 text-xs font-semibold rounded-md ${perm.c === 'red' ? 'text-red-500 bg-red-50' : 'text-slate-500 bg-slate-100'}`}>{perm.t}</span>
-                             ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 align-top">
-                          <div className="flex justify-end gap-3 mt-1">
-                            <button className="text-slate-400 hover:text-slate-800"><Edit className="w-4 h-4" /></button>
-                            <button className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          )}\n          {/* CONGIGURAÇÕES TAB */}
-          {activeTab === 'configuracoes' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5 max-w-4xl mx-auto w-full pb-10">
-              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
-                <div>
-                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
-                    <Settings className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CONFIGURAÇÕES DO SISTEMA
-                  </h2>
-                  <p className="text-sm text-slate-500 font-medium">Ajuste de cores, temas, fontes e comportamento</p>
-                </div>
-              </div>
+              <div className="bg-white rounded-xl border p-6 shadow-sm space-y-6" style={{ borderColor: panelBorderColor }}>
+                 <div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-2">Tema e Cores</h3>
+                    <div className="flex gap-4">
+                       <div>
+                         <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Cor Primária</label>
+                         <input type="color" value={primaryColor} onChange={e=>setPrimaryColor(e.target.value)} className="w-16 h-10 border rounded bg-white p-1" />
+                       </div>
+                       <div>
+                         <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Fundo da Aplicação</label>
+                         <input type="color" value={appBgColor} onChange={e=>setAppBgColor(e.target.value)} className="w-16 h-10 border rounded bg-white p-1" />
+                       </div>
+                       <div>
+                         <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Fundo dos Painéis</label>
+                         <input type="color" value={panelBgColor} onChange={e=>setPanelBgColor(e.target.value)} className="w-16 h-10 border rounded bg-white p-1" />
+                       </div>
+                    </div>
+                 </div>
+                 
+                 <div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6">Tipografia (Fonte)</h3>
+                    <select value={systemFont} onChange={e=>setSystemFont(e.target.value)} className="w-full max-w-sm p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }}>
+                      <option value="Inter">Inter (Sans-serif, Moderna)</option>
+                      <option value="Space Grotesk">Space Grotesk (Técnica)</option>
+                      <option value="Fira Code">Fira Code (Monoespaçada)</option>
+                      <option value="Georgia">Georgia (Editorial)</option>
+                      <option value="Work Sans">Work Sans (Padrão)</option>
+                    </select>
+                 </div>
 
-              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-8 font-sans">
-                {/* Visual Colors Area */}
-                <div>
-                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">APARÊNCIA VISUAL - CORES</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Cor Primária (Header/Navbar Mobile)</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
-                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
-                      </div>
+                 <div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6">Supabase Sync</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                       <input type="text" placeholder="URL do Supabase" value={supabaseUrl} onChange={e=>setSupabaseUrl(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
+                       <input type="password" placeholder="Chave Anônima" value={supabaseKey} onChange={e=>setSupabaseKey(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
                     </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Fundo Geral do App (Background)</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={appBgColor} onChange={(e) => setAppBgColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
-                        <input type="text" value={appBgColor} onChange={(e) => setAppBgColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Fundo dos Painéis/Cartões</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={panelBgColor} onChange={(e) => setPanelBgColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
-                        <input type="text" value={panelBgColor} onChange={(e) => setPanelBgColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Borders Area */}
-                <div>
-                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">APARÊNCIA VISUAL - BORDAS</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Cor da Borda dos Painéis</label>
-                      <div className="flex items-center gap-3">
-                        <input type="color" value={panelBorderColor} onChange={(e) => setPanelBorderColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
-                        <input type="text" value={panelBorderColor} onChange={(e) => setPanelBorderColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Espessura da Borda (px)</label>
-                      <input type="range" min="0" max="5" value={panelBorderWidth} onChange={(e) => setPanelBorderWidth(parseInt(e.target.value))} className="w-full mt-2 accent-red-600" />
-                      <div className="text-right text-xs text-slate-500 font-bold mt-1">{panelBorderWidth}px</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Typography Area */}
-                <div>
-                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">TIPOGRAFIA</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Fonte Principal do Sistema</label>
-                      <select value={systemFont} onChange={(e) => setSystemFont(e.target.value)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-1 focus:ring-red-500">
-                        <option value="Inter">Inter (Sans-Serif - Google)</option>
-                        <option value="Roboto">Roboto (Clássica - Padrão Android)</option>
-                        <option value="Work Sans">Work Sans (Geral Default)</option>
-                        <option value="Open Sans">Open Sans (Alta Leiturabilidade)</option>
-                        <option value="Arial, sans-serif">Arial (Clássica Web)</option>
-                        <option value="'JetBrains Mono', monospace">JetBrains Mono (Monoespaçada)</option>
-                        <option value="'Space Grotesk', sans-serif">Space Grotesk (Moderna e Larga)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-1">Escala de Fonte Geral</label>
-                      <select value={fontSizeScale} onChange={(e) => setFontSizeScale(e.target.value as any)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-1 focus:ring-red-500">
-                        <option value="small">Menor (Compacta 85%)</option>
-                        <option value="normal">Normal (100% - Padrão)</option>
-                        <option value="large">Grande (115% - Melhor Leitura)</option>
-                        <option value="xlarge">Extra Grande (130% - Acessibilidade)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Security Section */}
-                <div className="pt-2">
-                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">SEGURANÇA DA SESSÃO</h3>
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Timeout Automático (Minutos)</label>
-                    <input type="number" min="5" max="1440" value={timeoutMinutes} onChange={(e) => setTimeoutMinutes(parseInt(e.target.value))} className="w-full max-w-[200px] border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none" />
-                    <p className="text-xs text-slate-400 mt-1">O usuário será desconectado automaticamente após esta inatividade.</p>
-                  </div>
-                </div>
+                 </div>
               </div>
             </motion.div>
           )}
+
+
           </AnimatePresence>
         </div>
       </main>
