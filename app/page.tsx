@@ -1176,7 +1176,7 @@ export default function Home() {
               <div className="flex justify-between items-end">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800">Visão Geral</h2>
-                  <p className="text-sm text-slate-500 font-medium">Acompanhamento consolidado de {currentCompany?.nome}</p>
+                  <p className="text-sm text-slate-500 font-medium">Painel estratégico e funil de oportunidades comerciais</p>
                 </div>
                 {currentUser?.email === 'admin' && (
                   <button onClick={() => setIsAddingBid(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
@@ -1185,44 +1185,71 @@ export default function Home() {
                 )}
               </div>
 
-              {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
-                   <p className="text-xs font-bold text-slate-500 uppercase">Licitações Analisadas</p>
-                   <h3 className="text-3xl font-extrabold text-slate-800 mt-2">{companyBids.length}</h3>
-                 </div>
-                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
-                   <p className="text-xs font-bold text-slate-500 uppercase">Atestados Mapeados</p>
-                   <h3 className="text-3xl font-extrabold text-slate-800 mt-2">{companyCerts.length}</h3>
-                 </div>
-                 <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
-                   <p className="text-xs font-bold text-slate-500 uppercase">Estimativa Global</p>
-                   <h3 className="text-2xl font-extrabold text-emerald-600 mt-2 tracking-tight">R$ {(companyBids.reduce((a,b)=>a+Number(b.valor_estimado), 0)/1000000).toFixed(1)}M</h3>
-                 </div>
+              {/* Funnel of Opportunities */}
+              <div className="bg-white p-6 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-600" /> Funil de Oportunidades</h3>
+                <div className="flex flex-col md:flex-row gap-2 h-auto md:h-24">
+                   {[
+                     { label: 'Captação', count: 12, color: 'bg-slate-100 text-slate-700 border-slate-200' },
+                     { label: 'Análise Viabilidade', count: 8, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                     { label: 'Documentação', count: 5, color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                     { label: 'Em Proposta', count: 3, color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                     { label: 'Sessão Pública', count: 2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                     { label: 'Adjudicados', count: 4, color: 'bg-emerald-500 text-white border-emerald-600' }
+                   ].map((stage, i) => (
+                     <div key={i} className={`flex-1 rounded-lg border flex flex-col justify-center items-center p-3 ${stage.color} relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer`}>
+                       <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 text-center mb-1">{stage.label}</span>
+                       <span className="text-2xl font-black">{stage.count}</span>
+                       {i < 5 && <ChevronRight className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-300 z-10" />}
+                     </div>
+                   ))}
+                </div>
               </div>
 
-              <div className="bg-white p-6 rounded-xl border shadow-sm mt-6" style={{ borderColor: panelBorderColor }}>
-                <h3 className="text-sm font-bold text-slate-800 mb-4">Certames Recentes</h3>
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50/50 text-slate-500 text-xs font-bold">
-                    <tr>
-                      <th className="px-4 py-3 border-b">Órgão</th>
-                      <th className="px-4 py-3 border-b">Objeto</th>
-                      <th className="px-4 py-3 border-b">Data</th>
-                      <th className="px-4 py-3 border-b">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {companyBids.slice(0, 5).map(bid => (
-                      <tr key={bid.id} className="border-b last:border-0 hover:bg-slate-50">
-                        <td className="px-4 py-3 font-semibold text-slate-800">{bid.orgao}</td>
-                        <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
-                        <td className="px-4 py-3 text-slate-500">{bid.created_at}</td>
-                        <td className="px-4 py-3 text-emerald-600 font-bold">{bid.status}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {/* Mini KPI Cards */}
+                 <div className="space-y-4 col-span-1">
+                   <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                     <p className="text-xs font-bold text-slate-500 uppercase">Estimativa Global do Funil</p>
+                     <h3 className="text-2xl font-extrabold text-slate-800 mt-2 tracking-tight">R$ {(companyBids.reduce((a,b)=>a+Number(b.valor_estimado), 0)/1000000).toFixed(1)}M</h3>
+                   </div>
+                   <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                     <p className="text-xs font-bold text-slate-500 uppercase">Taxa de Conversão</p>
+                     <h3 className="text-2xl font-extrabold text-emerald-600 mt-2 tracking-tight">32%</h3>
+                   </div>
+                 </div>
+
+                 {/* Recent Bids Table */}
+                 <div className="col-span-2 bg-white p-6 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4">Lista Mestra de Editais Ativos</h3>
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-left text-sm whitespace-nowrap">
+                       <thead className="bg-slate-50/50 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                         <tr>
+                           <th className="px-4 py-3 border-b">Órgão</th>
+                           <th className="px-4 py-3 border-b">Objeto</th>
+                           <th className="px-4 py-3 border-b">Fase</th>
+                           <th className="px-4 py-3 border-b">Valor Estimado</th>
+                         </tr>
+                       </thead>
+                       <tbody className="divide-y divide-slate-100">
+                         {companyBids.slice(0, 5).map((bid, i) => (
+                           <tr key={bid.id} className="hover:bg-slate-50/50 cursor-pointer transition-colors">
+                             <td className="px-4 py-3 font-semibold text-slate-800">{bid.orgao}</td>
+                             <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
+                             <td className="px-4 py-3">
+                               <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">Análise</span>
+                             </td>
+                             <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">R$ {Number(bid.valor_estimado).toLocaleString('pt-BR')}</td>
+                           </tr>
+                         ))}
+                         {companyBids.length === 0 && (
+                           <tr><td colSpan={4} className="text-center py-6 text-slate-400 text-sm">Nenhum edital cadastrado.</td></tr>
+                         )}
+                       </tbody>
+                     </table>
+                   </div>
+                 </div>
               </div>
             </motion.div>
           )}
@@ -1232,30 +1259,91 @@ export default function Home() {
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Calendar className="text-emerald-600" /> Agenda e Prazos</h2>
-                  <p className="text-sm text-slate-500 font-medium">Controle de vencimentos de propostas e aberturas</p>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Calendar className="text-emerald-600" /> Agenda de Prazos Críticos</h2>
+                  <p className="text-sm text-slate-500 font-medium">Gestão simultânea de prazos de propostas, sessões públicas e documentos</p>
                 </div>
+                <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">
+                  <Filter className="w-4 h-4" /> Filtrar Prazos
+                </button>
               </div>
-              <div className="bg-white rounded-xl border p-6 shadow-sm min-h-[400px]" style={{ borderColor: panelBorderColor }}>
-                 {companyBids.length === 0 ? (
-                   <div className="text-center text-slate-400 py-10">Nenhum evento agendado.</div>
-                 ) : (
-                   <div className="space-y-4">
-                     {companyBids.map(bid => (
-                       <div key={bid.id} className="flex items-center gap-4 p-4 border border-slate-100 rounded-lg hover:border-emerald-200 transition-colors">
-                         <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-lg flex flex-col items-center justify-center shrink-0">
-                           <span className="text-xs font-bold uppercase">{new Date(bid.prazo_proposta).toLocaleString('pt-BR', { month: 'short' })}</span>
-                           <span className="text-xl font-extrabold">{new Date(bid.prazo_proposta).getDate()}</span>
-                         </div>
-                         <div>
-                           <h4 className="font-bold text-slate-800">{bid.orgao} - {bid.modalidade}</h4>
-                           <p className="text-sm text-slate-500 mt-1 line-clamp-1">{bid.objeto}</p>
-                           <p className="text-xs font-semibold text-red-500 mt-2">Fechamento Proposta: {bid.prazo_proposta}</p>
-                         </div>
-                       </div>
-                     ))}
+              
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                 {/* Mini Calendar View Sidebar */}
+                 <div className="col-span-1 space-y-4">
+                   <div className="bg-white rounded-xl border p-5 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                      <div className="flex justify-between items-center mb-4">
+                         <button className="p-1 hover:bg-slate-100 rounded"><ChevronLeft className="w-4 h-4 text-slate-600" /></button>
+                         <h4 className="font-bold text-slate-800 text-sm">{new Date().toLocaleString('pt-BR', {month: 'long', year: 'numeric'}).toUpperCase()}</h4>
+                         <button className="p-1 hover:bg-slate-100 rounded"><ChevronRight className="w-4 h-4 text-slate-600" /></button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                        {['D','S','T','Q','Q','S','S'].map((d,i) => <div key={i} className="text-[10px] font-bold text-slate-400">{d}</div>)}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1 text-center">
+                        {/* Mock Days */}
+                        {Array.from({length: 31}).map((_, i) => {
+                          const today = new Date().getDate();
+                          const isWarning = [ today+2, today+5 ].includes(i+1);
+                          const isDanger = [ today+1 ].includes(i+1);
+                          return (
+                            <div key={i} className={`aspect-square flex items-center justify-center text-xs rounded-full font-medium cursor-pointer transition-colors ${i+1 === today ? 'bg-emerald-600 text-white font-bold' : isDanger ? 'bg-red-100 text-red-700 font-bold border border-red-200' : isWarning ? 'bg-amber-100 text-amber-700 font-bold border border-amber-200' : 'text-slate-700 hover:bg-slate-100'}`}>
+                              {i+1}
+                            </div>
+                          );
+                        })}
+                      </div>
                    </div>
-                 )}
+                   
+                   <div className="bg-white rounded-xl border p-5 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                     <h4 className="text-xs uppercase font-bold text-slate-500 mb-3 tracking-wider">Legenda de Alertas</h4>
+                     <div className="space-y-2 text-sm">
+                       <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> <span className="font-medium text-slate-700">Prazo Urgente (&lt; 48h)</span></div>
+                       <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-amber-500"></div> <span className="font-medium text-slate-700">Atenção (2 a 5 dias)</span></div>
+                       <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div> <span className="font-medium text-slate-700">No Prazo (&gt; 5 dias)</span></div>
+                     </div>
+                   </div>
+                 </div>
+
+                 {/* Detailed Events List */}
+                 <div className="col-span-3 bg-white rounded-xl border p-6 shadow-sm min-h-[400px]" style={{ borderColor: panelBorderColor }}>
+                    <h3 className="text-sm font-bold text-slate-800 mb-5">Eventos e Prazos Recentes</h3>
+                    {companyBids.length === 0 ? (
+                      <div className="text-center text-slate-400 py-10">Nenhum evento agendado.</div>
+                    ) : (
+                      <div className="space-y-4">
+                        {companyBids.map((bid, index) => {
+                          const urgency = index === 0 ? 'danger' : index === 1 ? 'warning' : 'safe';
+                          return (
+                            <div key={bid.id} className={`flex gap-4 p-4 border rounded-lg transition-colors hover:shadow-sm ${urgency === 'danger' ? 'border-red-200 bg-red-50/30' : urgency === 'warning' ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200'}`}>
+                              <div className={`w-1.5 rounded-full shrink-0 ${urgency === 'danger' ? 'bg-red-500' : urgency === 'warning' ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                              <div className="flex-1">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <h4 className="font-bold text-slate-800 flex items-center gap-2">{bid.orgao} <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 uppercase">{bid.modalidade}</span></h4>
+                                    <p className="text-sm text-slate-500 mt-1 line-clamp-1">{bid.objeto}</p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                                   <div className="flex flex-col bg-white p-2 rounded border border-slate-100">
+                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Upload className="w-3 h-3" /> Fim das Propostas</span>
+                                     <span className="text-sm font-semibold text-slate-700 mt-0.5">{bid.prazo_proposta} 09:00</span>
+                                   </div>
+                                   <div className="flex flex-col bg-white p-2 rounded border border-slate-100">
+                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Gavel className="w-3 h-3" /> Sessão Pública</span>
+                                     <span className="text-sm font-semibold text-slate-700 mt-0.5">{bid.prazo_proposta} 09:30</span>
+                                   </div>
+                                   <div className="flex flex-col bg-white p-2 rounded border border-slate-100">
+                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><FolderOpen className="w-3 h-3" /> Diligência / Docs</span>
+                                     <span className="text-sm font-semibold text-slate-500 mt-0.5 italic">Nenhuma pendente</span>
+                                   </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                 </div>
               </div>
             </motion.div>
           )}
@@ -1265,39 +1353,114 @@ export default function Home() {
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                 <div>
-                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Search className="text-emerald-600" /> Scanner Inteligente de Editais</h2>
-                  <p className="text-sm text-slate-500 font-medium">Extraia dados e valide requisitos com Inteligência Artificial</p>
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Search className="text-emerald-600 w-6 h-6" /> Scanner Profissional de Editais</h2>
+                  <p className="text-sm text-slate-500 font-medium">Extração de dados via IA para criação rápida de resumo do edital</p>
                 </div>
+                <button onClick={() => { setScannerResult(null); setRawScannerText(''); }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                  <Plus className="w-4 h-4" /> Novo Edital (PDF)
+                </button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
-                   <h3 className="text-sm font-bold text-slate-800 mb-4">Novo Processamento</h3>
-                   <textarea rows={10} value={rawScannerText} onChange={(e) => setRawScannerText(e.target.value)} placeholder="Cole o texto do edital aqui..." className="w-full p-4 border text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500" style={{ borderColor: panelBorderColor }}></textarea>
-                   <div className="mt-4 flex gap-3">
-                     <button onClick={() => handleTriggerTenderScanner(null)} disabled={scannerIsProcessing} className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold shadow-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
-                       {scannerIsProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Executar Scanner IA
+
+              {!scannerResult ? (
+                <div className="bg-white rounded-xl border border-dashed border-slate-300 p-10 flex flex-col items-center justify-center text-center hover:bg-slate-50 transition-colors cursor-pointer group">
+                  <div className="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-800">Carregar Novo Edital</h3>
+                  <p className="text-sm text-slate-500 max-w-md mx-auto mt-2">Arraste e solte o arquivo PDF do edital aqui ou clique para procurar no seu computador. A Inteligência Artificial lerá o documento e preencherá os campos automaticamente.</p>
+                  <button onClick={() => handleTriggerTenderScanner(null)} disabled={scannerIsProcessing} className="mt-6 px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-sm flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50">
+                    {scannerIsProcessing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} {scannerIsProcessing ? 'Analisando Edital...' : 'Procurar Arquivo Local'}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+                  {/* Resumo do Edital Fields */}
+                  <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                     <div className="flex justify-between items-center mb-6">
+                       <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><CheckSquare className="w-4 h-4 text-emerald-600" /> Resumo do Edital Estruturado</h3>
+                     </div>
+                     <div className="space-y-4">
+                       <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Órgão Licitante</label>
+                         <input type="text" defaultValue={scannerResult.orgao} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none" />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Objeto do Edital</label>
+                         <textarea rows={2} defaultValue={scannerResult.objeto || "Fornecimento de equipamentos..."} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none" />
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Modalidade</label>
+                           <input type="text" defaultValue={scannerResult.modalidade} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none" />
+                         </div>
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Valor Estimado</label>
+                           <input type="text" defaultValue={"R$ " + scannerResult.valor_estimado} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 font-mono focus:outline-none" />
+                         </div>
+                       </div>
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Prazo de Proposta</label>
+                           <input type="date" defaultValue={scannerResult.prazo_proposta?.split('T')[0] || new Date().toISOString().split('T')[0]} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 font-mono focus:outline-none" />
+                         </div>
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Sessão / Abertura</label>
+                           <input type="date" defaultValue={scannerResult.prazo_proposta?.split('T')[0] || new Date().toISOString().split('T')[0]} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 font-mono focus:outline-none" />
+                         </div>
+                       </div>
+                     </div>
+                     <button onClick={applyImportedScannerToBids} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2">
+                       <Check className="w-4 h-4" /> Salvar Edital no Sistema
                      </button>
-                   </div>
+                  </div>
+
+                  {/* Requirements and Matching Grade */}
+                  <div className="bg-white rounded-xl border p-6 shadow-sm flex flex-col" style={{ borderColor: panelBorderColor }}>
+                     <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2"><Sparkles className="w-4 h-4 text-indigo-500" /> Análise IA de Viabilidade e Exigências</h3>
+                     
+                     <div className="flex-1 space-y-6">
+                        <div>
+                          <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">Exigências de Documentação Obrigatória</h4>
+                          <div className="grid grid-cols-1 gap-2">
+                            {(scannerResult.documentos_obrigatorios || ['Habilitação Jurídica', 'Regularidade Fiscal', 'Qualificação Econômico-Financeira']).map((doc: string, i: number) => (
+                              <div key={i} className="flex items-center gap-3 p-2 bg-slate-50 border border-slate-100 rounded">
+                                 <input type="checkbox" defaultChecked className="accent-emerald-600 w-4 h-4" />
+                                 <span className="text-sm font-medium text-slate-700">{doc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h4 className="text-xs uppercase font-bold text-slate-500 tracking-wider mb-2">Atestados Técnicos Exigidos vs. Acervo da Empresa</h4>
+                          <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-lg space-y-3">
+                             <p className="text-sm text-indigo-900 font-medium leading-relaxed">Exigência do Edital: <strong>&quot;Comprovação de fornecimento de equipamentos similares ou compatíveis com o objeto.&quot;</strong></p>
+                             
+                             <div className="mt-4 pt-4 border-t border-indigo-200/50">
+                               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Compatibilidade Encontrada (CRUD Atestados)</p>
+                               {companyCerts.length > 0 ? (
+                                 <div className="p-3 bg-white border border-emerald-200 rounded-md shadow-sm">
+                                   <div className="flex items-start justify-between">
+                                      <div>
+                                        <p className="text-sm font-bold text-slate-800 flex items-center gap-1.5"><Check className="w-3.5 h-3.5 text-emerald-600" /> {companyCerts[0].nome_atestado}</p>
+                                        <p className="text-xs text-slate-500">Emitido por {companyCerts[0].orgao_emissor}</p>
+                                        <span className="inline-block mt-2 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded uppercase">Match Técnico de 95%</span>
+                                      </div>
+                                      <button className="text-indigo-600 text-xs font-bold hover:underline">Ver Item Cruzado</button>
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <div className="p-3 bg-red-50 border border-red-100 rounded-md text-sm text-red-700 font-medium flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4" /> Nenhum atestado no CRUD atende a este requisito.
+                                 </div>
+                               )}
+                             </div>
+                          </div>
+                        </div>
+                     </div>
+                  </div>
                 </div>
-                <div className="space-y-6">
-                  {scannerResult && (
-                    <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
-                      <h3 className="text-sm font-bold text-emerald-700 mb-4 flex items-center gap-2"><Check className="w-5 h-5" /> Resultados do Mapeamento</h3>
-                      <div className="space-y-3 text-sm">
-                        <p><strong className="text-slate-700">Modalidade:</strong> {scannerResult.modalidade}</p>
-                        <p><strong className="text-slate-700">Valor Estimado:</strong> R$ {scannerResult.valor_estimado}</p>
-                        <p><strong className="text-slate-700">Órgão:</strong> {scannerResult.orgao}</p>
-                        <p><strong className="text-slate-700">Documentos:</strong> {scannerResult.documentos_obrigatorios?.join(', ')}</p>
-                      </div>
-                      {!scannerResult.isCertificate && (
-                        <button onClick={applyImportedScannerToBids} className="w-full mt-6 py-2 border border-emerald-500 text-emerald-600 font-bold rounded-md hover:bg-emerald-50 transition-colors">
-                          Importar para Gestão
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </motion.div>
           )}
 
@@ -1305,44 +1468,88 @@ export default function Home() {
           {activeTab === 'atestados' && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
-                 <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Shield className="text-emerald-600" /> Acervo Técnico de Atestados</h2>
+                 <div>
+                   <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Shield className="text-emerald-600" /> Controle de Atestados Técnicos (Acervo)</h2>
+                   <p className="text-sm text-slate-500 font-medium">CRUD linha a linha para servir de base na análise de editais via IA</p>
+                 </div>
                  <button onClick={() => setIsAddingCert(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
-                    <Plus className="w-4 h-4" /> Cadastrar Atestado
+                    <Plus className="w-4 h-4" /> Novo Atestado (PDF via IA)
                  </button>
               </div>
-              <div className="bg-white rounded-xl border p-6 shadow-sm overflow-x-auto" style={{ borderColor: panelBorderColor }}>
+              <div className="bg-white rounded-xl border shadow-sm overflow-hidden" style={{ borderColor: panelBorderColor }}>
+                 <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                   <div className="relative">
+                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                     <input type="text" placeholder="Buscar atestado ou item..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm w-64 bg-white focus:outline-none" />
+                   </div>
+                 </div>
                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50/50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                    <thead className="bg-[#F8FAFC] border-b text-slate-500 text-[10px] font-bold uppercase tracking-wider">
                        <tr>
-                          <th className="px-4 py-3 border-b">Atestado / Emissor</th>
-                          <th className="px-4 py-3 border-b">Data</th>
-                          <th className="px-4 py-3 border-b">Itens Técnicos</th>
-                          <th className="px-4 py-3 border-b">Ações</th>
+                          <th className="px-6 py-4 w-6"></th>
+                          <th className="px-6 py-4">Atestado / Emissor</th>
+                          <th className="px-6 py-4">Data Emissão</th>
+                          <th className="px-6 py-4">Total Itens (Linhas)</th>
+                          <th className="px-6 py-4 text-right">Ações</th>
                        </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-slate-100">
                        {companyCerts.map((cert) => (
-                          <tr key={cert.id} className="border-b last:border-0 hover:bg-slate-50">
-                            <td className="px-4 py-4">
-                               <p className="font-bold text-slate-800">{cert.nome_atestado}</p>
-                               <p className="text-slate-500 text-xs">{cert.orgao_emissor}</p>
-                            </td>
-                            <td className="px-4 py-4 font-mono text-slate-500 text-xs">{cert.data_emissao}</td>
-                            <td className="px-4 py-4">
-                               <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{cert.itens.length} itens averbados</span>
-                            </td>
-                            <td className="px-4 py-4 flex gap-2">
-                               <button disabled className="text-slate-400 hover:text-emerald-600"><Edit className="w-4 h-4" /></button>
-                               <button onClick={() => handleDeleteCert(cert.id)} className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
-                            </td>
-                          </tr>
+                          <React.Fragment key={cert.id}>
+                            <tr className="hover:bg-slate-50/50 cursor-pointer group">
+                              <td className="px-6 py-4 text-slate-400 group-hover:text-emerald-600">
+                                <ChevronRight className="w-4 h-4" />
+                              </td>
+                              <td className="px-6 py-4">
+                                 <p className="font-bold text-slate-800">{cert.nome_atestado}</p>
+                                 <p className="text-slate-500 text-xs mt-0.5">{cert.orgao_emissor}</p>
+                              </td>
+                              <td className="px-6 py-4 font-mono text-slate-600 text-xs font-semibold">{cert.data_emissao}</td>
+                              <td className="px-6 py-4">
+                                 <span className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider">{cert.itens?.length || 0} Itens Cadastrados</span>
+                              </td>
+                              <td className="px-6 py-4">
+                                 <div className="flex justify-end gap-3">
+                                   <button className="text-slate-400 hover:text-emerald-600" title="Ver Itens"><Layers className="w-4 h-4" /></button>
+                                   <button disabled className="text-slate-400 hover:text-blue-600"><Edit className="w-4 h-4" /></button>
+                                   <button onClick={() => handleDeleteCert(cert.id)} className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
+                                 </div>
+                              </td>
+                            </tr>
+                            {/* Line-by-line item preview (dummy expansion for UX context) */}
+                            <tr className="bg-slate-50 border-t-0 hidden group-hover:table-row transition-all">
+                              <td></td>
+                              <td colSpan={4} className="p-0 border-t border-slate-100">
+                                <div className="p-4 pl-0">
+                                  <table className="w-full text-xs bg-white rounded border border-slate-200 shadow-sm">
+                                    <thead className="bg-slate-100 text-slate-500">
+                                      <tr><th className="p-2">Item Técnico (Linha do PDF)</th><th className="p-2 w-32">Qtd/Valor</th><th className="p-2 w-20">Ações</th></tr>
+                                    </thead>
+                                    <tbody>
+                                      {cert.itens?.map((it:any, idx:number) => (
+                                        <tr key={idx} className="border-t border-slate-100">
+                                          <td className="p-2 text-slate-700 font-medium">{it.descricao || 'Item genérico'}</td>
+                                          <td className="p-2 font-mono text-slate-500">{it.quantidade || '1'} unid.</td>
+                                          <td className="p-2 text-right"><button className="text-slate-400 hover:text-emerald-600"><Edit className="w-3 h-3 inline" /></button></td>
+                                        </tr>
+                                      )) || (
+                                        <tr><td colSpan={3} className="p-3 text-center text-slate-400">Nenhum item discriminado</td></tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          </React.Fragment>
                        ))}
+                       {companyCerts.length === 0 && (
+                         <tr><td colSpan={5} className="text-center py-8 text-slate-400">Nenhum atestado cadastrado na base. A IA não terá parâmetros de cruzamento técnico.</td></tr>
+                       )}
                     </tbody>
                  </table>
               </div>
             </motion.div>
           )}
-
           {/* EMPRESAS */}
           {activeTab === 'empresas' && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
