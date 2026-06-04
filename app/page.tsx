@@ -202,7 +202,6 @@ export default function Home() {
   const [calendarMonth, setCalendarMonth] = useState('Junho 2026');
 
   // User CRUD states
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('123');
@@ -213,7 +212,6 @@ export default function Home() {
   const [userSubTab, setUserSubTab] = useState<'usuarios' | 'perfis'>('usuarios');
 
   // Profile CRUD states
-  const [showAddProfileModal, setShowAddProfileModal] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
   const [newProfileDashboard, setNewProfileDashboard] = useState(true);
   const [newProfileAgenda, setNewProfileAgenda] = useState(true);
@@ -224,12 +222,10 @@ export default function Home() {
   const [newProfileAjustes, setNewProfileAjustes] = useState(false);
 
   // Simple CRUD controllers
-  const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState('');
   const [newCompanyKey, setNewCompanyKey] = useState('');
   const [newCompanyCnpj, setNewCompanyCnpj] = useState('');
 
-  const [showAddBidModal, setShowAddBidModal] = useState(false);
   const [newBidModalidade, setNewBidModalidade] = useState('Pregão Eletrônico');
   const [newBidObjeto, setNewBidObjeto] = useState('');
   const [newBidOrgao, setNewBidOrgao] = useState('');
@@ -247,7 +243,22 @@ export default function Home() {
   const [newCertItems, setNewCertItems] = useState<AtestadoItem[]>([
     { item_numero: 1, descricao: 'Fornecimento continuado de material', quantidade: 50, unidade: 'un', relevancia_tecnica: 'Média' }
   ]);
-  const [showAddCertModal, setShowAddCertModal] = useState(false);
+
+  // Full-page edit and add state controllers (No popups requirement)
+  const [editingCompany, setEditingCompany] = useState<Empresa | null>(null);
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+
+  const [editingUser, setEditingUser] = useState<PerfilUsuario | null>(null);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
+  const [editingProfile, setEditingProfile] = useState<PerfilAcesso | null>(null);
+  const [isAddingProfile, setIsAddingProfile] = useState(false);
+
+  const [editingBid, setEditingBid] = useState<Licitacao | null>(null);
+  const [isAddingBid, setIsAddingBid] = useState(false);
+
+  const [editingCert, setEditingCert] = useState<AtestadoTecnico | null>(null);
+  const [isAddingCert, setIsAddingCert] = useState(false);
 
   // Mock document uploading to Base Repository
   const [repoFileUploaded, setRepoFileUploaded] = useState(false);
@@ -297,11 +308,41 @@ export default function Home() {
       }
 
       const storedUsers = localStorage.getItem('proprocure_usuarios');
-      if (storedUsers) setUsuarios(JSON.parse(storedUsers));
-      else {
-        setUsuarios(INITIAL_USERS);
-        localStorage.setItem('proprocure_usuarios', JSON.stringify(INITIAL_USERS));
+      let loadedUsers: PerfilUsuario[] = [];
+      if (storedUsers) {
+        try {
+          loadedUsers = JSON.parse(storedUsers);
+        } catch (e) {
+          loadedUsers = [];
+        }
       }
+
+      if (loadedUsers.length === 0) {
+        loadedUsers = [...INITIAL_USERS];
+      }
+
+      // Ensure that 'admin' is always present and has correct credentials
+      const adminExists = loadedUsers.some(u => u.email.toLowerCase().trim() === 'admin');
+      if (!adminExists) {
+        loadedUsers.push({
+          email: 'admin',
+          nome: 'Administrador Geral',
+          senha: 'Cjl@j2326082110',
+          perfilId: 'perfil-admin',
+          chave_empresa: 'ALL'
+        });
+      } else {
+        loadedUsers = loadedUsers.map(u => u.email.toLowerCase().trim() === 'admin' ? {
+          ...u,
+          email: 'admin',
+          senha: 'Cjl@j2326082110',
+          perfilId: 'perfil-admin',
+          chave_empresa: 'ALL'
+        } : u);
+      }
+
+      setUsuarios(loadedUsers);
+      localStorage.setItem('proprocure_usuarios', JSON.stringify(loadedUsers));
 
       const storedProfiles = localStorage.getItem('proprocure_perfis');
       if (storedProfiles) setPerfis(JSON.parse(storedProfiles));
@@ -460,20 +501,20 @@ export default function Home() {
     const login = inputs[0]?.value.trim();
     const password = inputs[1]?.value.trim();
     
-    const user = usuarios.find(u => u.email === login);
+    const user = usuarios.find(u => u.email.toLowerCase().trim() === login.toLowerCase().trim());
     
     if (!user) {
       alert('Usuário não encontrado. Solicite acesso ao Administrador.');
       return;
     }
     
-    if (user.senha && user.senha !== password) {
+    if (user.senha && user.senha.trim() !== password.trim()) {
       alert('Senha incorreta.');
       return;
     }
     
     setCurrentUser(user);
-    if (user.email === 'admin') {
+    if (user.email.toLowerCase().trim() === 'admin') {
       // General admin can always switch and see all companies
       setActiveCompanyKey('LICITATECH');
       setActiveTab('dashboard');
@@ -515,14 +556,14 @@ export default function Home() {
       alert("Por favor preencha todos os campos do usuário.");
       return;
     }
-    const isEditing = usuarios.some(u => u.email === newUserEmail);
+    const isEditing = usuarios.some(u => u.email.toLowerCase().trim() === newUserEmail.toLowerCase().trim());
     if (isEditing) {
       alert("Este e-mail/usuário já está cadastrado.");
       return;
     }
     const nextList: PerfilUsuario[] = [
       {
-        email: newUserEmail,
+        email: newUserEmail.trim(),
         nome: newUserName,
         senha: newUserPassword,
         perfilId: newUserProfileId,
@@ -535,8 +576,13 @@ export default function Home() {
     setNewUserName('');
     setNewUserPassword('123');
     setNewUserProfileId('perfil-analista');
-    setNewUserCompanyKey('LICITATECH');
-    setShowAddUserModal(false);
+    setNewUserCompanyKey(newUserCompanyKey || 'LICITATECH');
+    setIsAddingUser(false);
+  };
+
+  const handleSaveEditUser = (updatedUser: PerfilUsuario) => {
+    setUsuarios(usuarios.map(u => u.email.toLowerCase().trim() === updatedUser.email.toLowerCase().trim() ? updatedUser : u));
+    setEditingUser(null);
   };
 
   const handleAddProfile = () => {
@@ -569,7 +615,12 @@ export default function Home() {
     setNewProfileEmpresas(false);
     setNewProfileUsuariosPerfis(false);
     setNewProfileAjustes(false);
-    setShowAddProfileModal(false);
+    setIsAddingProfile(false);
+  };
+
+  const handleSaveEditProfile = (updatedProfile: PerfilAcesso) => {
+    setPerfis(perfis.map(p => p.id === updatedProfile.id ? updatedProfile : p));
+    setEditingProfile(null);
   };
 
   // --- CRUD DISPATCH METHODS ---
@@ -588,8 +639,13 @@ export default function Home() {
     setNewCompanyName('');
     setNewCompanyKey('');
     setNewCompanyCnpj('');
-    setShowAddCompanyModal(false);
+    setIsAddingCompany(false);
     setActiveCompanyKey(fresh.chave_empresa);
+  };
+
+  const handleSaveEditCompany = (updatedCompany: Empresa) => {
+    setEmpresas(empresas.map(e => e.id === updatedCompany.id ? updatedCompany : e));
+    setEditingCompany(null);
   };
 
   const handleAddBid = () => {
@@ -617,10 +673,15 @@ export default function Home() {
     };
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
-    setShowAddBidModal(false);
+    setIsAddingBid(false);
     setNewBidObjeto('');
     setNewBidOrgao('');
     setNewBidValor(50000);
+  };
+
+  const handleSaveEditBid = (updatedBid: Licitacao) => {
+    setLicitacoes(licitacoes.map(b => b.id === updatedBid.id ? updatedBid : b));
+    setEditingBid(null);
   };
 
   const handleDeleteBid = (id: string) => {
@@ -682,13 +743,18 @@ export default function Home() {
     };
 
     setAtestados([...atestados, freshCert]);
-    setShowAddCertModal(false);
+    setIsAddingCert(false);
     setNewCertName('');
     setNewCertEmissor('');
     setNewCertObs('');
     setNewCertItems([
       { item_numero: 1, descricao: 'Fornecimento continuado de material', quantidade: 50, unidade: 'un', relevancia_tecnica: 'Média' }
     ]);
+  };
+
+  const handleSaveEditCert = (updatedCert: AtestadoTecnico) => {
+    setAtestados(atestados.map(c => c.id === updatedCert.id ? updatedCert : c));
+    setEditingCert(null);
   };
 
   const handleDeleteCert = (id: string) => {
@@ -1027,7 +1093,7 @@ export default function Home() {
               className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
             >
               <Building className="w-4 h-4 shrink-0" />
-              <span>Empresas CRUD</span>
+              <span>Empresas</span>
             </button>
           )}
           {hasTabPermission('usuarios') && (
@@ -1180,7 +1246,7 @@ export default function Home() {
                   className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
                 >
                   <Building className="w-4 h-4 text-slate-450" />
-                  <span>Empresas CRUD</span>
+                  <span>Empresas</span>
                 </button>
               )}
 
@@ -1283,7 +1349,229 @@ export default function Home() {
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              {/* Critical Alert Bar */}
+              {isAddingBid ? (
+                /* --- ADD TENDER/LICITACAO OVERLAY --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-850 text-sm">Adicionar Novo Edital de Licitação</h3>
+                      <p className="text-[11px] text-slate-400">Insira as informações básicas do novo processo licitatório</p>
+                    </div>
+                    <button onClick={() => { setIsAddingBid(false); setNewBidObjeto(''); setNewBidOrgao(''); }} className="text-slate-400 hover:text-slate-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Órgão Licitador:</label>
+                      <input
+                        type="text"
+                        value={newBidOrgao}
+                        onChange={(e) => setNewBidOrgao(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
+                        placeholder="EX: Tribunal de Justiça de São Paulo (TJ-SP)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Modalidade:</label>
+                      <select
+                        value={newBidModalidade}
+                        onChange={(e) => setNewBidModalidade(e.target.value as any)}
+                        className="w-full px-3 py-2 border border-slate-205 rounded bg-white focus:outline-none font-semibold"
+                      >
+                        <option value="Pregão Eletrônico">Pregão Eletrônico</option>
+                        <option value="Concorrência Pública">Concorrência Pública</option>
+                        <option value="Diálogo Competitivo">Diálogo Competitivo</option>
+                        <option value="Tomada de Preços">Tomada de Preços</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Objeto Resumido da Licitação:</label>
+                      <textarea
+                        rows={3}
+                        value={newBidObjeto}
+                        onChange={(e) => setNewBidObjeto(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-202 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="EX: Contratação de empresa especializada para prestação de serviços de suporte técnico..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Valor Estimado Total (R$):</label>
+                      <input
+                        type="number"
+                        value={newBidValor}
+                        onChange={(e) => setNewBidValor(Number(e.target.value))}
+                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Prazo Envio Proposta:</label>
+                      <input
+                        type="date"
+                        value={newBidPrazoProp}
+                        onChange={(e) => setNewBidPrazoProp(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Prazo Abertura e Divulgação:</label>
+                      <input
+                        type="date"
+                        value={newBidPrazoAber}
+                        onChange={(e) => setNewBidPrazoAber(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Exigências Técnicas Resumidas para Atestados:</label>
+                      <input
+                        type="text"
+                        value={newBidExigencias}
+                        onChange={(e) => setNewBidExigencias(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-205 rounded focus:outline-none font-semibold"
+                        placeholder="EX: Comprovação de acervo técnico compatível"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Documentos Obrigatórios (Separados por vírgula):</label>
+                      <input
+                        type="text"
+                        value={newBidDocs}
+                        onChange={(e) => setNewBidDocs(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-205 rounded focus:outline-none font-semibold"
+                        placeholder="Regularidade Fiscal, CNPJ Ativo, Balanço Patrimonial, Inscrição Estadual"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => { setIsAddingBid(false); setNewBidObjeto(''); setNewBidOrgao(''); }}
+                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleAddBid}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Criar Lote Licitatório
+                    </button>
+                  </div>
+                </div>
+              ) : editingBid ? (
+                /* --- EDIT TENDER/LICITACAO OVERLAY --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-850 text-sm">Editar Edital de Licitação</h3>
+                      <p className="text-[11px] text-slate-400">Modifique os parâmetros registrados desse edital ativo</p>
+                    </div>
+                    <button onClick={() => setEditingBid(null)} className="text-slate-400 hover:text-slate-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Órgão Licitador:</label>
+                      <input
+                        type="text"
+                        value={editingBid.orgao}
+                        onChange={(e) => setEditingBid({ ...editingBid, orgao: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Modalidade:</label>
+                      <select
+                        value={editingBid.modalidade}
+                        onChange={(e) => setEditingBid({ ...editingBid, modalidade: e.target.value as any })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded bg-white focus:outline-none font-semibold"
+                      >
+                        <option value="Pregão Eletrônico">Pregão Eletrônico</option>
+                        <option value="Concorrência Pública">Concorrência Pública</option>
+                        <option value="Diálogo Competitivo">Diálogo Competitivo</option>
+                        <option value="Tomada de Preços">Tomada de Preços</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Objeto Resumido da Licitação:</label>
+                      <textarea
+                        rows={3}
+                        value={editingBid.objeto}
+                        onChange={(e) => setEditingBid({ ...editingBid, objeto: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded focus:outline-none focus:ring-1 focus:ring-blue-550 font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Valor Estimado Total (R$):</label>
+                      <input
+                        type="number"
+                        value={editingBid.valor_estimado}
+                        onChange={(e) => setEditingBid({ ...editingBid, valor_estimado: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Prazo Envio Proposta:</label>
+                      <input
+                        type="date"
+                        value={editingBid.prazo_proposta}
+                        onChange={(e) => setEditingBid({ ...editingBid, prazo_proposta: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Prazo Abertura e Divulgação:</label>
+                      <input
+                        type="date"
+                        value={editingBid.prazo_abertura}
+                        onChange={(e) => setEditingBid({ ...editingBid, prazo_abertura: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Exigências Técnicas Resumidas para Atestados:</label>
+                      <input
+                        type="text"
+                        value={editingBid.exigencias_atestados}
+                        onChange={(e) => setEditingBid({ ...editingBid, exigencias_atestados: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-251 rounded focus:outline-none font-semibold"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Documentos Obrigatórios (Separados por vírgula):</label>
+                      <input
+                        type="text"
+                        value={editingBid.documentos_obrigatorios.join(', ')}
+                        onChange={(e) => setEditingBid({ ...editingBid, documentos_obrigatorios: e.target.value.split(',').map(d => d.trim()) })}
+                        className="w-full px-3 py-2 border border-slate-251 rounded focus:outline-none font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => setEditingBid(null)}
+                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleSaveEditBid(editingBid)}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Salvar Alterações
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Critical Alert Bar */}
               <div className="bg-red-50 border border-red-200 p-4 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
                 <div className="flex gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-650 shrink-0 mt-0.5" />
@@ -1314,7 +1602,7 @@ export default function Home() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowAddBidModal(true)}
+                  onClick={() => setIsAddingBid(true)}
                   className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-bold flex items-center gap-1.5 transition shrink-0 shadow-sm"
                   style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
                 >
@@ -1442,7 +1730,7 @@ export default function Home() {
                             <td colSpan={4} className="p-8 text-center text-slate-400 text-xs">
                               <ArchiveIconPlaceholder className="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-400" />
                               Nenhuma licitação cadastrada para esta empresa. 
-                              <button onClick={() => setShowAddBidModal(true)} className="text-red-600 block mx-auto underline mt-1 font-bold">
+                              <button onClick={() => setIsAddingBid(true)} className="text-red-600 block mx-auto underline mt-1 font-bold">
                                 Adicionar Manualmente
                               </button>
                             </td>
@@ -1461,7 +1749,7 @@ export default function Home() {
                                 R$ {bid.valor_estimado.toLocaleString('pt-BR')}
                               </td>
                               <td className="px-4 py-2 text-center">
-                                <div className="flex gap-1.5 justify-center">
+                                <div className="flex gap-1.5 justify-center items-center">
                                   <button
                                     onClick={() => handleAnalyzeAptitude(bid)}
                                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] flex items-center gap-1 transition"
@@ -1471,8 +1759,16 @@ export default function Home() {
                                     <Sparkles className="w-3 h-3 text-amber-305" /> Analisar
                                   </button>
                                   <button
+                                    onClick={() => setEditingBid(bid)}
+                                    className="text-slate-400 hover:text-blue-500 p-1"
+                                    title="Editar Licitação"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
                                     onClick={() => handleDeleteBid(bid.id)}
                                     className="text-slate-400 hover:text-red-500 p-1"
+                                    title="Excluir Licitação"
                                   >
                                     <Trash className="w-3.5 h-3.5" />
                                   </button>
@@ -1486,6 +1782,8 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+                </>
+              )}
             </motion.div>
           )}
 
@@ -1508,7 +1806,10 @@ export default function Home() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowAddBidModal(true)}
+                  onClick={() => {
+                    setActiveTab('dashboard');
+                    setIsAddingBid(true);
+                  }}
                   className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1.5 transition whitespace-nowrap"
                   style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
                 >
@@ -1923,29 +2224,389 @@ export default function Home() {
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-slate-700" />
-                    Controle de Atestados Técnicos da Empresa
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Cadastre, revise e processe acervos técnicos linha a linha dos atestados da empresa.
-                  </p>
+              {isAddingCert ? (
+                /* --- ADD CERTIFICATE OVERLAY --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs animate-fade-in">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-850 text-sm">Cadastrar Novo Atestado Técnico</h3>
+                      <p className="text-[11px] text-slate-400 font-medium">Cadastre a comprovação de acervo técnico com seus itens discriminados</p>
+                    </div>
+                    <button onClick={() => setIsAddingCert(false)} className="text-slate-400 hover:text-slate-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Nome do Atestado / Objeto:</label>
+                      <input
+                        type="text"
+                        value={newCertName}
+                        onChange={(e) => setNewCertName(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold text-slate-800"
+                        placeholder="EX: Atestado de execução de serviços de engenharia de redes"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Data de Emissão:</label>
+                      <input
+                        type="date"
+                        value={newCertData}
+                        onChange={(e) => setNewCertData(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Órgão ou Empresa Emissora:</label>
+                      <input
+                        type="text"
+                        value={newCertEmissor}
+                        onChange={(e) => setNewCertEmissor(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
+                        placeholder="EX: Petrobras S.A. / Secretaria de Educação"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Observações Adicionais:</label>
+                      <input
+                        type="text"
+                        value={newCertObs}
+                        onChange={(e) => setNewCertObs(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
+                        placeholder="EX: Registrado no CREA sob nº 1234/205"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ITENS TABLE EDITING */}
+                  <div className="border border-slate-200 rounded-lg overflow-hidden mt-2">
+                    <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                      <span className="font-bold text-slate-700 text-xs uppercase tracking-tight">Itens de Acervo Técnico (Linhas de Capacidade)</span>
+                      <button
+                        onClick={() => {
+                          const nextNum = newCertItems.length + 1;
+                          setNewCertItems([
+                            ...newCertItems,
+                            { item_numero: nextNum, descricao: '', quantidade: 1, unidade: 'un', relevancia_tecnica: 'Média' }
+                          ]);
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-850 px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 border border-indigo-200"
+                      >
+                        <Plus className="w-3 h-3" /> Adicionar Item
+                      </button>
+                    </div>
+
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/60 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px]">
+                          <th className="px-3 py-1.5 w-12 text-center">Nº</th>
+                          <th className="px-3 py-1.5">Descrição Técnica do Serviço Prestado</th>
+                          <th className="px-3 py-1.5 w-24">Qtd.</th>
+                          <th className="px-3 py-1.5 w-20">Unidade</th>
+                          <th className="px-3 py-1.5 w-28">Relevância</th>
+                          <th className="px-3 py-1.5 w-16 text-center">Remover</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {newCertItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-4 text-center text-slate-400 font-medium">Adicione ao menos um item de comprovação técnica para salvar.</td>
+                          </tr>
+                        ) : (
+                          newCertItems.map((it, index) => (
+                            <tr key={index} className="border-b last:border-0 hover:bg-slate-50/50">
+                              <td className="px-3 py-2 text-center text-slate-500 font-mono font-bold">#{it.item_numero}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={it.descricao}
+                                  onChange={(e) => {
+                                    const updated = [...newCertItems];
+                                    updated[index].descricao = e.target.value;
+                                    setNewCertItems(updated);
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded font-semibold text-slate-800"
+                                  placeholder="EX: Instalação e conectorização de fibra óptica multimodo"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  value={it.quantidade}
+                                  onChange={(e) => {
+                                    const updated = [...newCertItems];
+                                    updated[index].quantidade = Number(e.target.value);
+                                    setNewCertItems(updated);
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded font-bold font-mono text-center"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={it.unidade}
+                                  onChange={(e) => {
+                                    const updated = [...newCertItems];
+                                    updated[index].unidade = e.target.value;
+                                    setNewCertItems(updated);
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded uppercase font-mono font-bold text-center text-slate-600"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={it.relevancia_tecnica}
+                                  onChange={(e) => {
+                                    const updated = [...newCertItems];
+                                    updated[index].relevancia_tecnica = e.target.value as any;
+                                    setNewCertItems(updated);
+                                  }}
+                                  className="w-full px-1.5 py-1 border border-slate-200 rounded bg-white font-bold"
+                                >
+                                  <option value="Alta">Alta</option>
+                                  <option value="Média">Média</option>
+                                  <option value="Baixa">Baixa</option>
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setNewCertItems(newCertItems.filter((_, i) => i !== index))}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-full transition"
+                                >
+                                  <Trash className="w-4 h-4 mx-auto" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => setIsAddingCert(false)}
+                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSaveCertificate}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Salvar Atestado
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setNewCertItems([
-                      { item_numero: 1, descricao: 'Fornecimento continuado de material', quantidade: 50, unidade: 'un', relevancia_tecnica: 'Média' }
-                    ]);
-                    setShowAddCertModal(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shrink-0 shadow-sm"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Plus className="w-4 h-4" /> Cadastrar Atestado
-                </button>
-              </div>
+              ) : editingCert ? (
+                /* --- EDIT CERTIFICATE OVERLAY --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs animate-fade-in">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-850 text-sm">Editar Atestado Técnico</h3>
+                      <p className="text-[11px] text-slate-400 font-medium">Atualize as informações discriminadas deste certificado</p>
+                    </div>
+                    <button onClick={() => setEditingCert(null)} className="text-slate-400 hover:text-slate-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Nome do Atestado / Objeto:</label>
+                      <input
+                        type="text"
+                        value={editingCert.nome_atestado}
+                        onChange={(e) => setEditingCert({ ...editingCert, nome_atestado: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Data de Emissão:</label>
+                      <input
+                        type="date"
+                        value={editingCert.data_emissao}
+                        onChange={(e) => setEditingCert({ ...editingCert, data_emissao: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Órgão ou Empresa Emissora:</label>
+                      <input
+                        type="text"
+                        value={editingCert.orgao_emissor}
+                        onChange={(e) => setEditingCert({ ...editingCert, orgao_emissor: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Observações:</label>
+                      <input
+                        type="text"
+                        value={editingCert.observacoes || ''}
+                        onChange={(e) => setEditingCert({ ...editingCert, observacoes: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* ITENS TABLE EDITING */}
+                  <div className="border border-slate-200 rounded-lg overflow-hidden mt-2">
+                    <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
+                      <span className="font-bold text-slate-700 text-xs uppercase tracking-tight">Itens de Acervo Técnico (Linhas de Capacidade)</span>
+                      <button
+                        onClick={() => {
+                          const nextNum = editingCert.itens.length + 1;
+                          const updated = [
+                            ...editingCert.itens,
+                            { item_numero: nextNum, descricao: '', quantidade: 1, unidade: 'un', relevancia_tecnica: 'Média' as const }
+                          ];
+                          setEditingCert({ ...editingCert, itens: updated });
+                        }}
+                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-850 px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 border border-indigo-200"
+                      >
+                        <Plus className="w-3 h-3" /> Adicionar Item
+                      </button>
+                    </div>
+
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100/60 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px]">
+                          <th className="px-3 py-1.5 w-12 text-center">Nº</th>
+                          <th className="px-3 py-1.5">Descrição Técnica do Serviço Prestado</th>
+                          <th className="px-3 py-1.5 w-24">Qtd.</th>
+                          <th className="px-3 py-1.5 w-20">Unidade</th>
+                          <th className="px-3 py-1.5 w-28">Relevância</th>
+                          <th className="px-3 py-1.5 w-16 text-center">Remover</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {editingCert.itens.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="p-4 text-center text-slate-400 font-medium">Adicione ao menos um item de comprovação técnica para salvar.</td>
+                          </tr>
+                        ) : (
+                          editingCert.itens.map((it, index) => (
+                            <tr key={index} className="border-b last:border-0 hover:bg-slate-50/50">
+                              <td className="px-3 py-2 text-center text-slate-500 font-mono font-bold">#{it.item_numero}</td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={it.descricao}
+                                  onChange={(e) => {
+                                    const updated = [...editingCert.itens];
+                                    updated[index].descricao = e.target.value;
+                                    setEditingCert({ ...editingCert, itens: updated });
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded font-semibold text-slate-800"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="number"
+                                  value={it.quantidade}
+                                  onChange={(e) => {
+                                    const updated = [...editingCert.itens];
+                                    updated[index].quantidade = Number(e.target.value);
+                                    setEditingCert({ ...editingCert, itens: updated });
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded font-bold font-mono text-center"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  value={it.unidade}
+                                  onChange={(e) => {
+                                    const updated = [...editingCert.itens];
+                                    updated[index].unidade = e.target.value;
+                                    setEditingCert({ ...editingCert, itens: updated });
+                                  }}
+                                  className="w-full px-2 py-1 border border-slate-200 rounded uppercase font-mono font-bold text-center text-slate-605"
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  value={it.relevancia_tecnica}
+                                  onChange={(e) => {
+                                    const updated = [...editingCert.itens];
+                                    updated[index].relevancia_tecnica = e.target.value as any;
+                                    setEditingCert({ ...editingCert, itens: updated });
+                                  }}
+                                  className="w-full px-1.5 py-1 border border-slate-200 rounded bg-white font-bold"
+                                >
+                                  <option value="Alta">Alta</option>
+                                  <option value="Média">Média</option>
+                                  <option value="Baixa">Baixa</option>
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = editingCert.itens.filter((_, i) => i !== index);
+                                    setEditingCert({ ...editingCert, itens: updated });
+                                  }}
+                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-full transition"
+                                >
+                                  <Trash className="w-4 h-4 mx-auto" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => setEditingCert(null)}
+                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleSaveEditCert(editingCert)}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Salvar Alterações
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200 pb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-slate-700" />
+                        Controle de Atestados Técnicos da Empresa
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Cadastre, revise e processe acervos técnicos linha a linha dos atestados da empresa.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setNewCertName('');
+                        setNewCertEmissor('');
+                        setNewCertObs('');
+                        setNewCertData(new Date().toISOString().split('T')[0]);
+                        setNewCertItems([
+                          { item_numero: 1, descricao: 'Fornecimento continuado de material', quantidade: 50, unidade: 'un', relevancia_tecnica: 'Média' }
+                        ]);
+                        setIsAddingCert(true);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shrink-0 shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Plus className="w-4 h-4" /> Cadastrar Atestado
+                    </button>
+                  </div>
 
               {/* Advanced Matching Simulator Drawer Indicator */}
               {comparingBid && (
@@ -2041,16 +2702,26 @@ export default function Home() {
                             Emitido por <span className="font-semibold text-slate-600">{cert.orgao_emissor}</span> em {new Date(cert.data_emissao + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        <button
-                          onClick={() => handleDeleteCert(cert.id)}
-                          className="text-slate-400 hover:text-red-600 py-1"
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
+                        <span className="flex items-center gap-2">
+                          <button
+                            onClick={() => setEditingCert(cert)}
+                            className="text-slate-400 hover:text-blue-500 p-1"
+                            title="Editar Atestado"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCert(cert.id)}
+                            className="text-slate-400 hover:text-red-600 p-1"
+                            title="Excluir Atestado"
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
+                        </span>
                       </div>
 
                       {/* Display lines row-by-row CRUD (Requirement 4.d) */}
-                      <div className="overflow-x-auto bg-slate-50 rounded-lg p-3 border border-slate-150">
+                      <div className="overflow-x-auto bg-slate-50 rounded-lg p-3 border border-slate-150 font-sans">
                         <table className="w-full text-left text-xs text-slate-700">
                           <thead>
                             <tr className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">
@@ -2082,6 +2753,8 @@ export default function Home() {
                   ))
                 )}
               </div>
+                </>
+              )}
             </motion.div>
           )}
 
@@ -2093,66 +2766,225 @@ export default function Home() {
               exit={{ opacity: 0 }}
               className="space-y-5"
             >
-              <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <Building className="w-5 h-5 text-slate-750" />
-                    Cadastro Multi-Empresa
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Gerencie os perfis das corporate keys acessíveis na sua rede de licitações.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowAddCompanyModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Cadastrar Nova Empresa
-                </button>
-              </div>
-
-              {/* Companies listing Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 font-sans">
-                {empresas.map(emp => {
-                  const isCurrent = emp.chave_empresa === activeCompanyKey;
-                  const bidsCount = licitacoes.filter(l => l.chave_empresa === emp.chave_empresa).length;
-                  const certsCount = atestados.filter(c => c.chave_empresa === emp.chave_empresa).length;
-
-                  return (
-                    <div
-                      key={emp.id}
-                      onClick={() => setActiveCompanyKey(emp.chave_empresa)}
-                      className={`p-4 rounded border transition cursor-pointer flex flex-col justify-between h-40 bg-white ${isCurrent ? 'border-indigo-650 shadow-sm ring-1 ring-indigo-550/10' : 'border-slate-200 shadow-xs hover:border-slate-350'}`}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-mono">CHAVE: {emp.chave_empresa}</span>
-                          <h3 className="font-bold text-slate-850 text-xs tracking-tight truncate max-w-[180px] mt-1">{emp.nome}</h3>
-                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">CNPJ: {emp.cnpj}</p>
-                        </div>
-                        {isCurrent && (
-                          <span className="bg-indigo-50 border border-indigo-120 text-indigo-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                            Ativa
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Info indicators */}
-                      <div className="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-center text-xs text-slate-500">
-                        <div className="bg-slate-50 border border-slate-150 p-1.5 rounded">
-                          <p className="font-bold text-slate-800 text-xs leading-none">{bidsCount}</p>
-                          <p className="text-[9px] text-slate-400 uppercase font-mono mt-0.5 tracking-tight">Editais</p>
-                        </div>
-                        <div className="bg-slate-50 border border-slate-150 p-1.5 rounded">
-                          <p className="font-bold text-slate-800 text-xs leading-none">{certsCount}</p>
-                          <p className="text-[9px] text-slate-400 uppercase font-mono mt-0.5 tracking-tight">Atestados</p>
-                        </div>
-                      </div>
+              {isAddingCompany ? (
+                /* --- ADD COMPANY OVERLAY FORM --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">Cadastrar Nova Empresa</h3>
+                      <p className="text-[11px] text-slate-400">Preencha as informações cadastrais corporativas abaixo</p>
                     </div>
-                  );
-                })}
-              </div>
+                    <button onClick={() => { setIsAddingCompany(false); setNewCompanyName(''); setNewCompanyKey(''); setNewCompanyCnpj(''); }} className="text-slate-400 hover:text-slate-600 transition">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Razão Social / Nome Fantasia:</label>
+                      <input
+                        type="text"
+                        value={newCompanyName}
+                        onChange={(e) => setNewCompanyName(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="EX: Licitacoes Sul do Brasil Ltda"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">CNPJ:</label>
+                      <input
+                        type="text"
+                        value={newCompanyCnpj}
+                        onChange={(e) => setNewCompanyCnpj(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="EX: 00.000.000/0001-00"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">Chave Unificadora (Sigla):</label>
+                      <input
+                        type="text"
+                        value={newCompanyKey}
+                        onChange={(e) => setNewCompanyKey(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 border border-slate-200 rounded uppercase font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="EX: LICSUL"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => { setIsAddingCompany(false); setNewCompanyName(''); setNewCompanyKey(''); setNewCompanyCnpj(''); }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleAddCompany}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Criar Empresa
+                    </button>
+                  </div>
+                </div>
+              ) : editingCompany ? (
+                /* --- EDIT COMPANY OVERLAY FORM --- */
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans">
+                  <div className="flex justify-between items-center border-b pb-3">
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">Editar Cadastro da Empresa</h3>
+                      <p className="text-[11px] text-slate-400">Atualize as informações corporativas registradas no sistema</p>
+                    </div>
+                    <button onClick={() => setEditingCompany(null)} className="text-slate-400 hover:text-slate-600 transition">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div className="md:col-span-2">
+                      <label className="block text-slate-600 font-semibold mb-1">Razão Social / Nome Fantasia:</label>
+                      <input
+                        type="text"
+                        value={editingCompany.nome}
+                        onChange={(e) => setEditingCompany({ ...editingCompany, nome: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-600 font-semibold mb-1">CNPJ:</label>
+                      <input
+                        type="text"
+                        value={editingCompany.cnpj}
+                        onChange={(e) => setEditingCompany({ ...editingCompany, cnpj: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-400 font-semibold mb-1 cursor-not-allowed">Chave Unificadora (Inalterável):</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={editingCompany.chave_empresa}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <button
+                      onClick={() => setEditingCompany(null)}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => handleSaveEditCompany(editingCompany)}
+                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      Salvar Alterações
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* --- GENERAL COMPANIES LIST TABLE --- */
+                <>
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                        <Building className="w-5 h-5 text-slate-750" />
+                        Empresas
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Gerencie os perfis das corporate keys acessíveis na sua rede de licitações.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddingCompany(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                      style={{ backgroundColor: primaryColor }}
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Cadastrar Nova Empresa
+                    </button>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 font-semibold w-1/6">Sigla</th>
+                          <th className="px-4 py-3 font-semibold w-2/5">Razão Social / Nome</th>
+                          <th className="px-4 py-3 font-semibold w-1/5">CNPJ</th>
+                          <th className="px-4 py-3 font-semibold text-center w-1/12">Editais</th>
+                          <th className="px-4 py-3 font-semibold text-center w-1/12">Atestados</th>
+                          <th className="px-4 py-3 font-semibold text-center w-1/12">Status</th>
+                          <th className="px-4 py-3 font-semibold text-right w-1/12">Ações</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-sm">
+                        {empresas.map(emp => {
+                          const isCurrent = emp.chave_empresa === activeCompanyKey;
+                          const bidsCount = licitacoes.filter(l => l.chave_empresa === emp.chave_empresa).length;
+                          const certsCount = atestados.filter(c => c.chave_empresa === emp.chave_empresa).length;
+
+                          return (
+                            <tr key={emp.id} className={`hover:bg-slate-50/50 transition ${isCurrent ? 'bg-blue-50/10' : ''}`}>
+                              <td className="px-4 py-3 font-mono font-bold text-xs text-blue-700">{emp.chave_empresa}</td>
+                              <td className="px-4 py-3 font-semibold text-slate-800">{emp.nome}</td>
+                              <td className="px-4 py-3 font-mono text-xs text-slate-500">{emp.cnpj}</td>
+                              <td className="px-4 py-3 text-center font-bold text-slate-700">{bidsCount}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-slate-700">{certsCount}</td>
+                              <td className="px-4 py-3 text-center">
+                                {isCurrent ? (
+                                  <span className="bg-blue-50 border border-blue-120 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Ativa
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setActiveCompanyKey(emp.chave_empresa)}
+                                    className="bg-slate-50 hover:bg-slate-105 border text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider transition cursor-pointer"
+                                  >
+                                    Ativar
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex gap-2 justify-end">
+                                  <button
+                                    onClick={() => setEditingCompany(emp)}
+                                    className="text-slate-400 hover:text-blue-650 p-1"
+                                    title="Editar Empresa"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 inline" />
+                                  </button>
+                                  {empresas.length > 1 && (
+                                    <button
+                                      onClick={() => {
+                                        if (confirm(`Tem certeza que deseja excluir a empresa "${emp.nome}"? Seus editais e atestados perderão o vínculo ativo.`)) {
+                                          setEmpresas(empresas.filter(e => e.id !== emp.id));
+                                          if (isCurrent) {
+                                            const remaining = empresas.filter(e => e.id !== emp.id);
+                                            setActiveCompanyKey(remaining[0].chave_empresa);
+                                          }
+                                        }
+                                      }}
+                                      className="text-slate-400 hover:text-red-650 p-1"
+                                      title="Excluir Empresa"
+                                    >
+                                      <Trash className="w-3.5 h-3.5 inline" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </motion.div>
           )}
 
@@ -2165,18 +2997,18 @@ export default function Home() {
               className="space-y-6"
             >
               {/* Internal Sub-Tabs Navigation */}
-              <div className="flex justify-between items-center bg-slate-150 p-1 rounded-lg max-w-md border border-slate-200">
+              <div className="flex justify-between items-center bg-slate-100 p-1 rounded-lg max-w-md border border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setUserSubTab('usuarios')}
-                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'usuarios' ? 'bg-white shadow-xs text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                  onClick={() => { setUserSubTab('usuarios'); setIsAddingUser(false); setEditingUser(null); }}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'usuarios' ? 'bg-white shadow-xs text-slate-950 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Controle de Usuários
                 </button>
                 <button
                   type="button"
-                  onClick={() => setUserSubTab('perfis')}
-                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'perfis' ? 'bg-white shadow-xs text-slate-900 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
+                  onClick={() => { setUserSubTab('perfis'); setIsAddingProfile(false); setEditingProfile(null); }}
+                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'perfis' ? 'bg-white shadow-xs text-slate-950 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   Perfis e Módulos
                 </button>
@@ -2185,187 +3017,626 @@ export default function Home() {
               {/* USER MANAGEMENT SUB-TAB */}
               {userSubTab === 'usuarios' && (
                 <div className="space-y-5">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                        <User className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
-                        Controle de Usuários Corporativos
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Cadastre e edite as credenciais de colaboradores. Cada usuário é vinculado a um Perfil de Acesso e a uma Empresa obrigatória.
-                      </p>
+                  {isAddingUser ? (
+                    /* --- ADD USER OVERLAY --- */
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                      <div className="flex justify-between items-center border-b pb-3">
+                        <div>
+                          <h3 className="font-bold text-slate-850 text-sm">Adicionar Novo Usuário</h3>
+                          <p className="text-[11px] text-slate-400">Cadastre um colaborador para acesso ao painel de licitações</p>
+                        </div>
+                        <button onClick={() => setIsAddingUser(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Nome Completo:</label>
+                          <input
+                            type="text"
+                            value={newUserName}
+                            onChange={(e) => setNewUserName(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="EX: João da Silva"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">E-mail / Username Login:</label>
+                          <input
+                            type="text"
+                            value={newUserEmail}
+                            onChange={(e) => setNewUserEmail(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="EX: joao@empresa.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Senha de Acesso:</label>
+                          <input
+                            type="text"
+                            value={newUserPassword}
+                            onChange={(e) => setNewUserPassword(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Perfil de Acesso:</label>
+                          <select
+                            value={newUserProfileId}
+                            onChange={(e) => setNewUserProfileId(e.target.value)}
+                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
+                          >
+                            {perfis.map(p => (
+                              <option key={p.id} value={p.id}>{p.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-slate-600 font-semibold mb-1">Empresa Padrão Autorizada:</label>
+                          <select
+                            value={newUserCompanyKey}
+                            onChange={(e) => setNewUserCompanyKey(e.target.value)}
+                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
+                          >
+                            {empresas.map(emp => (
+                              <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t">
+                        <button
+                          onClick={() => setIsAddingUser(false)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleAddUser}
+                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Salvar Usuário
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddUserModal(true)}
-                      className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Adicionar Usuário
-                    </button>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                          <th className="px-4 py-3 font-semibold w-1/5">Nome do Colaborador</th>
-                          <th className="px-4 py-3 font-semibold w-1/5">E-mail / Login</th>
-                          <th className="px-4 py-3 font-semibold w-1/6">Senha</th>
-                          <th className="px-4 py-3 font-semibold w-1/5 text-center">Perfil de Acesso</th>
-                          <th className="px-4 py-3 font-semibold w-1/5 text-center">Empresa Cadastrada</th>
-                          <th className="px-4 py-3 font-semibold text-right w-1/12">Excluir</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {usuarios.map((u, idx) => {
-                          const isSuperAdmin = u.email === 'admin';
-                          return (
-                            <tr key={idx} className="hover:bg-slate-50/50 transition">
-                              <td className="px-4 py-3 font-medium text-slate-800">{u.nome}</td>
-                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.email}</td>
-                              <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.senha || '•••'}</td>
-                              <td className="px-4 py-3 text-center">
-                                <select 
-                                  className="text-xs bg-slate-50 border border-slate-250 p-1.5 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 max-w-[150px]"
-                                  value={u.perfilId}
-                                  disabled={isSuperAdmin}
-                                  onChange={(e) => {
-                                    const newUsers = [...usuarios];
-                                    newUsers[idx].perfilId = e.target.value;
-                                    setUsuarios(newUsers);
-                                    if (u.email === currentUser?.email) {
-                                      setCurrentUser(newUsers[idx]);
-                                    }
-                                  }}
-                                >
-                                  {perfis.map(p => (
-                                    <option key={p.id} value={p.id}>{p.nome}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <select 
-                                  className="text-xs bg-slate-50 border border-slate-250 p-1.5 rounded font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 max-w-[150px]"
-                                  value={u.chave_empresa}
-                                  disabled={isSuperAdmin}
-                                  onChange={(e) => {
-                                    const newUsers = [...usuarios];
-                                    newUsers[idx].chave_empresa = e.target.value;
-                                    setUsuarios(newUsers);
-                                    if (u.email === currentUser?.email) {
-                                      setCurrentUser(newUsers[idx]);
-                                      setActiveCompanyKey(e.target.value);
-                                    }
-                                  }}
-                                >
-                                  {isSuperAdmin && <option value="ALL">Todas (Acesso Geral)</option>}
-                                  {empresas.map(emp => (
-                                    <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome}</option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {isSuperAdmin ? (
-                                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 font-mono">Inviolável</span>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      if (confirm('Tem certeza que deseja remover o acesso deste usuário?')) {
-                                        setUsuarios(usuarios.filter((_, i) => i !== idx));
-                                      }
-                                    }}
-                                    className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
-                                    title="Remover acesso"
-                                  >
-                                    <Trash className="w-4 h-4 inline" />
-                                  </button>
-                                )}
-                              </td>
+                  ) : editingUser ? (
+                    /* --- EDIT USER OVERLAY --- */
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                      <div className="flex justify-between items-center border-b pb-3">
+                        <div>
+                          <h3 className="font-bold text-slate-850 text-sm">Editar Usuário Corporativo</h3>
+                          <p className="text-[11px] text-slate-400">Modifique os parâmetros de login do colaborador</p>
+                        </div>
+                        <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Nome Completo:</label>
+                          <input
+                            type="text"
+                            value={editingUser.nome}
+                            onChange={(e) => setEditingUser({ ...editingUser, nome: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-400 font-semibold mb-1 cursor-not-allowed">E-mail / Login (Inalterável):</label>
+                          <input
+                            type="text"
+                            disabled
+                            value={editingUser.email}
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded cursor-not-allowed font-mono text-slate-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Alterar Senha:</label>
+                          <input
+                            type="text"
+                            value={editingUser.senha}
+                            onChange={(e) => setEditingUser({ ...editingUser, senha: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Perfil de Acesso:</label>
+                          <select
+                            value={editingUser.perfilId}
+                            disabled={editingUser.email === 'admin'}
+                            onChange={(e) => setEditingUser({ ...editingUser, perfilId: e.target.value })}
+                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
+                          >
+                            {perfis.map(p => (
+                              <option key={p.id} value={p.id}>{p.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-slate-600 font-semibold mb-1">Empresa Padrão Autorizada:</label>
+                          <select
+                            value={editingUser.chave_empresa}
+                            disabled={editingUser.email === 'admin'}
+                            onChange={(e) => setEditingUser({ ...editingUser, chave_empresa: e.target.value })}
+                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
+                          >
+                            {editingUser.email === 'admin' && <option value="ALL">Todas (Acesso Geral)</option>}
+                            {empresas.map(emp => (
+                              <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t">
+                        <button
+                          onClick={() => setEditingUser(null)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleSaveEditUser(editingUser)}
+                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Salvar Alterações
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* --- NORMAL USER LIST TABLE --- */
+                    <>
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                        <div>
+                          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                            <User className="w-5 h-5 text-indigo-600" style={{ color: primaryColor }} />
+                            Controle de Usuários Corporativos
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Cadastre e edite as credenciais de colaboradores. Cada usuário é vinculado a um Perfil de Acesso e a uma Empresa obrigatória.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewUserEmail('');
+                            setNewUserName('');
+                            setNewUserPassword('123');
+                            setNewUserProfileId('perfil-analista');
+                            setNewUserCompanyKey(activeCompanyKey || 'LICITATECH');
+                            setIsAddingUser(true);
+                          }}
+                          className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Adicionar Usuário
+                        </button>
+                      </div>
+                      
+                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                              <th className="px-4 py-3 font-semibold w-1/4">Nome do Colaborador</th>
+                              <th className="px-4 py-3 font-semibold w-1/4">E-mail / Login</th>
+                              <th className="px-4 py-3 font-semibold w-1/6">Senha</th>
+                              <th className="px-4 py-3 font-semibold text-center w-1/5">Perfil de Acesso</th>
+                              <th className="px-4 py-3 font-semibold text-center w-1/5">Empresa Cadastrada</th>
+                              <th className="px-4 py-3 font-semibold text-right w-[100px]">Ações</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-sm animate-fade-in">
+                            {usuarios.map((u, idx) => {
+                              const isSuperAdmin = u.email === 'admin';
+                              const currentProfile = perfis.find(p => p.id === u.perfilId)?.nome || u.perfilId;
+                              const currentCompany = empresas.find(e => e.chave_empresa === u.chave_empresa)?.nome || u.chave_empresa;
+                              
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition">
+                                  <td className="px-4 py-3 font-semibold text-slate-800">{u.nome}</td>
+                                  <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.email}</td>
+                                  <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.senha || '•••'}</td>
+                                  <td className="px-4 py-3 text-center text-xs font-medium text-slate-700">
+                                    <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{currentProfile}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-xs font-medium text-slate-700">
+                                    <span className="bg-blue-50/70 border border-blue-100 text-blue-700 px-2 py-0.5 rounded">{currentCompany}</span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex gap-2 justify-end">
+                                      <button
+                                        onClick={() => setEditingUser(u)}
+                                        className="text-slate-400 hover:text-blue-650 p-1"
+                                        title="Editar Usuário"
+                                      >
+                                        <Edit className="w-3.5 h-3.5 inline" />
+                                      </button>
+                                      {isSuperAdmin ? (
+                                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 font-mono py-1 select-none pr-1">Fixo</span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            if (confirm(`Tem certeza que deseja remover o acesso para "${u.nome}"?`)) {
+                                              setUsuarios(usuarios.filter(us => us.email !== u.email));
+                                            }
+                                          }}
+                                          className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
+                                          title="Excluir Usuário"
+                                        >
+                                          <Trash className="w-3.5 h-3.5 inline" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
               {/* PROFILES AND MODULES SUB-TAB */}
               {userSubTab === 'perfis' && (
                 <div className="space-y-5">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-emerald-600" style={{ color: primaryColor }} />
-                        Configuração de Perfis e Permissões de Módulos
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Defina quais seções de menu (Dashboard, Agenda, Inteligência, Atestados, Empresas, Configurações) estão disponíveis para cada nível de perfil de acesso.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowAddProfileModal(true)}
-                      className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Adicionar Perfil
-                    </button>
-                  </div>
+                  {isAddingProfile ? (
+                    /* --- ADD PROFILE OVERLAY --- */
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                      <div className="flex justify-between items-center border-b pb-3">
+                        <div>
+                          <h3 className="font-bold text-slate-850 text-sm">Criar Novo Perfil de Acesso</h3>
+                          <p className="text-[11px] text-slate-400">Configure as permissões de acesso aos módulos do sistema</p>
+                        </div>
+                        <button onClick={() => setIsAddingProfile(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
 
-                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                          <th className="px-4 py-3 font-semibold w-1/4">Nome do Perfil</th>
-                          <th className="px-4 py-3 font-semibold w-2/3">Módulos Corporativos Habilitados</th>
-                          <th className="px-4 py-3 font-semibold text-right w-1/12">Ação</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {perfis.map((p, idx) => {
-                          const isCoreProfile = p.id === 'perfil-admin';
-                          return (
-                            <tr key={p.id} className="hover:bg-slate-50/50 transition">
-                              <td className="px-4 py-3 font-bold text-slate-800">{p.nome}</td>
-                              <td className="px-4 py-3">
-                                <div className="flex flex-wrap gap-1.5">
-                                  {p.dashboard && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Painel / Licitações</span>}
-                                  {p.agenda && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Calendário</span>}
-                                  {p.scanner && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Scanner IA / Licitações</span>}
-                                  {p.atestados && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Biblioteca de Atestados</span>}
-                                  {p.empresas && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Gestão Geral (Empresas)</span>}
-                                  {p.usuarios_perfis && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Usuários / Perfis</span>}
-                                  {p.ajustes && <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Ajustes / Supabase</span>}
-                                  {!p.dashboard && !p.agenda && !p.scanner && !p.atestados && !p.empresas && !p.usuarios_perfis && !p.ajustes && (
-                                    <span className="text-red-550 font-bold text-[10px]">Restrição Absoluta (Sem Acesso)</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                {isCoreProfile ? (
-                                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 font-mono">Padrão</span>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      if (confirm('Deseja excluir este perfil? Usuários vinculados perderão as permissões associadas.')) {
-                                        setPerfis(perfis.filter(pf => pf.id !== p.id));
-                                      }
-                                    }}
-                                    className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
-                                    title="Excluir Perfil"
-                                  >
-                                    <Trash className="w-4 h-4 inline" />
-                                  </button>
-                                )}
-                              </td>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Nome do Perfil:</label>
+                          <input
+                            type="text"
+                            value={newProfileName}
+                            onChange={(e) => setNewProfileName(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="EX: Coordenador de Propostas"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border p-4 rounded-lg space-y-3">
+                          <h4 className="font-bold text-slate-700 pb-1 border-b">Módulos que este perfil pode visualizar e operar:</h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileDashboard}
+                                onChange={(e) => setNewProfileDashboard(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Painel Principal & Licitações</span>
+                                <p className="text-[10px] text-slate-400">Acesso completo ao Funil, Indicadores e Editais Recentes</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileAgenda}
+                                onChange={(e) => setNewProfileAgenda(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Agenda de Prazos Expandida</span>
+                                <p className="text-[10px] text-slate-400">Visualização do calendário de datas de propostas e aberturas</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileScanner}
+                                onChange={(e) => setNewProfileScanner(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Scanner Assistente de Editais IA</span>
+                                <p className="text-[10px] text-slate-400">Carregamento e processamento por OCR e IA Gemini de novos arquivos PDF</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileAtestados}
+                                onChange={(e) => setNewProfileAtestados(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Biblioteca de Atestados Técnicos</span>
+                                <p className="text-[10px] text-slate-400">Controle e cadastro de atestados da empresa</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileEmpresas}
+                                onChange={(e) => setNewProfileEmpresas(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Gestão Corporativa (Empresas)</span>
+                                <p className="text-[10px] text-slate-400">Acesso para configurar novas Empresas do conglomerado</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={newProfileUsuariosPerfis}
+                                onChange={(e) => setNewProfileUsuariosPerfis(e.target.checked)}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Usuários & Perfis</span>
+                                <p className="text-[10px] text-slate-400">Esta tela. Gerencie quem acessa e quais as permissões</p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t">
+                        <button
+                          onClick={() => setIsAddingProfile(false)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleAddProfile}
+                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Criar Perfil
+                        </button>
+                      </div>
+                    </div>
+                  ) : editingProfile ? (
+                    /* --- EDIT PROFILE OVERLAY --- */
+                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
+                      <div className="flex justify-between items-center border-b pb-3">
+                        <div>
+                          <h3 className="font-bold text-slate-850 text-sm">Editar Perfil de Acesso</h3>
+                          <p className="text-[11px] text-slate-400">Atualize as regras e permissões nos módulos para o perfil &quot;{editingProfile.nome}&quot;</p>
+                        </div>
+                        <button onClick={() => setEditingProfile(null)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-slate-600 font-semibold mb-1">Nome do Perfil:</label>
+                          <input
+                            type="text"
+                            value={editingProfile.nome}
+                            disabled={editingProfile.id === 'perfil-admin'}
+                            onChange={(e) => setEditingProfile({ ...editingProfile, nome: e.target.value })}
+                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold disabled:bg-slate-55 disabled:text-slate-400 disabled:cursor-not-allowed"
+                          />
+                        </div>
+
+                        <div className="bg-slate-50 border p-4 rounded-lg space-y-3">
+                          <h4 className="font-bold text-slate-700 pb-1 border-b">Módulos habilitados:</h4>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.dashboard}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, dashboard: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Painel Principal & Licitações</span>
+                                <p className="text-[10px] text-slate-400">Funil, Indicadores e Editais Recentes</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.agenda}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, agenda: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Agenda de Prazos Expandida</span>
+                                <p className="text-[10px] text-slate-400">Calendário de datas críticas</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.scanner}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, scanner: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Scanner Assistente de Editais IA</span>
+                                <p className="text-[10px] text-slate-400">Carregamento e processamento por OCR/IA de PDFs</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.atestados}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, atestados: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Biblioteca de Atestados Técnicos</span>
+                                <p className="text-[10px] text-slate-400">Acervos de capacidade técnica</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.empresas}
+                                disabled={editingProfile.id === 'perfil-admin'}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, empresas: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:slate-300 disabled:cursor-not-allowed"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Gestão Corporativa (Empresas)</span>
+                                <p className="text-[10px] text-slate-400">Gerenciar as corporate keys do sistema</p>
+                              </div>
+                            </label>
+
+                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
+                              <input
+                                type="checkbox"
+                                checked={editingProfile.usuarios_perfis}
+                                disabled={editingProfile.id === 'perfil-admin'}
+                                onChange={(e) => setEditingProfile({ ...editingProfile, usuarios_perfis: e.target.checked })}
+                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:slate-300 disabled:cursor-not-allowed"
+                              />
+                              <div>
+                                <span className="font-semibold text-slate-800">Usuários & Perfis</span>
+                                <p className="text-[10px] text-slate-400">Gerenciar permissões e usuários</p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-4 border-t">
+                        <button
+                          onClick={() => setEditingProfile(null)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleSaveEditProfile(editingProfile)}
+                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Salvar Alterações
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* --- NORMAL PROFILES LIST TABLE --- */
+                    <>
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                        <div>
+                          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-indigo-600" style={{ color: primaryColor }} />
+                            Perfis e Módulos Cadastrados
+                          </h2>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Defina quais seções de menu (Dashboard, Agenda, Inteligência, Atestados, Empresas, Configurações) estão disponíveis para cada nível de perfil de acesso.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewProfileName('');
+                            setNewProfileDashboard(true);
+                            setNewProfileAgenda(true);
+                            setNewProfileScanner(true);
+                            setNewProfileAtestados(true);
+                            setNewProfileEmpresas(false);
+                            setNewProfileUsuariosPerfis(false);
+                            setNewProfileAjustes(false);
+                            setIsAddingProfile(true);
+                          }}
+                          className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Adicionar Perfil
+                        </button>
+                      </div>
+
+                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                              <th className="px-4 py-3 font-semibold w-1/4">Nome do Perfil</th>
+                              <th className="px-4 py-3 font-semibold w-2/3">Módulos Corporativos Habilitados</th>
+                              <th className="px-4 py-3 font-semibold text-right w-[100px]">Ações</th>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-sm">
+                            {perfis.map((p, idx) => {
+                              const isCoreProfile = p.id === 'perfil-admin';
+                              return (
+                                <tr key={p.id} className="hover:bg-slate-50/50 transition">
+                                  <td className="px-4 py-3 font-bold text-slate-800">{p.nome}</td>
+                                  <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {p.dashboard && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Painel / Licitações</span>}
+                                      {p.agenda && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Calendário</span>}
+                                      {p.scanner && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Scanner IA / Licitações</span>}
+                                      {p.atestados && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Acervo Técnico</span>}
+                                      {p.empresas && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Empresas</span>}
+                                      {p.usuarios_perfis && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Usuários / Perfis</span>}
+                                      {p.ajustes && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Ajustes / Migrations</span>}
+                                      {!p.dashboard && !p.agenda && !p.scanner && !p.atestados && !p.empresas && !p.usuarios_perfis && !p.ajustes && (
+                                        <span className="text-red-550 font-bold text-[10px]">Restrição Absoluta (Sem Acesso)</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="flex gap-2 justify-end">
+                                      <button
+                                        onClick={() => setEditingProfile(p)}
+                                        className="text-slate-400 hover:text-blue-650 p-1"
+                                        title="Editar Perfil"
+                                      >
+                                        <Edit className="w-3.5 h-3.5 inline" />
+                                      </button>
+                                      {isCoreProfile ? (
+                                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 font-mono py-1 select-none pr-1">Fixo</span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            if (confirm(`Tem certeza que deseja remover o perfil "${p.nome}"? Usuários vinculados poderão perder acesso.`)) {
+                                              setPerfis(perfis.filter(pf => pf.id !== p.id));
+                                            }
+                                          }}
+                                          className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
+                                          title="Excluir Perfil"
+                                        >
+                                          <Trash className="w-3.5 h-3.5 inline" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -2641,510 +3912,8 @@ export default function Home() {
         </div>
       </main>
 
-      {/* --- ADD USER DIALOG MODAL --- */}
-      {showAddUserModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full gap-4 flex flex-col shadow-2xl border border-slate-150 animate-fade-in font-sans">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-sm">Adicionar Usuário</h3>
-              <button onClick={() => setShowAddUserModal(false)}><X className="w-5 h-5 text-slate-400 hover:text-slate-600" /></button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome Completo</label>
-                <input 
-                  type="text" 
-                  value={newUserName}
-                  onChange={e => setNewUserName(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
-                  placeholder="Ex: João da Silva"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">E-mail Corporativo (Login)</label>
-                <input 
-                  type="text" 
-                  value={newUserEmail}
-                  onChange={e => setNewUserEmail(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
-                  placeholder="joao.silva@empresa.com.br ou login"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Senha Corporativa</label>
-                <input 
-                  type="password" 
-                  value={newUserPassword}
-                  onChange={e => setNewUserPassword(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
-                  placeholder="Digite a senha temporária"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Perfil de Acesso</label>
-                <select 
-                  value={newUserProfileId}
-                  onChange={e => setNewUserProfileId(e.target.value)}
-                  className="w-full text-sm bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500 font-semibold"
-                >
-                  {perfis.map(p => (
-                    <option key={p.id} value={p.id}>{p.nome}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Empresa Cadastrada</label>
-                <select 
-                  value={newUserCompanyKey}
-                  onChange={e => setNewUserCompanyKey(e.target.value)}
-                  className="w-full text-sm bg-slate-50 border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500 font-semibold"
-                >
-                  {empresas.map(emp => (
-                    <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button 
-                onClick={() => setShowAddUserModal(false)}
-                className="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded font-semibold transition"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleAddUser}
-                className="px-4 py-2 text-sm text-white rounded font-semibold transition shadow-sm"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Salvar Usuário
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* --- ADD PROFILE DIALOG MODAL --- */}
-      {showAddProfileModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full gap-4 flex flex-col shadow-2xl border border-slate-150 animate-fade-in font-sans">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-800 text-sm">Criar Perfil de Acesso</h3>
-              <button onClick={() => setShowAddProfileModal(false)}><X className="w-5 h-5 text-slate-400 hover:text-slate-600" /></button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Nome do Perfil</label>
-                <input 
-                  type="text" 
-                  value={newProfileName}
-                  onChange={e => setNewProfileName(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded p-2 focus:outline-none focus:border-emerald-500" 
-                  placeholder="Ex: Auditor Externo"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Habilitar Módulos</label>
-                <div className="space-y-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileDashboard} onChange={e => setNewProfileDashboard(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-                    Painel Geral e Controle de Licitações
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileAgenda} onChange={e => setNewProfileAgenda(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-                    Calendário de Editais e Prazos
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileScanner} onChange={e => setNewProfileScanner(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-                    Scanner Inteligente com Inteligência Artificial
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileAtestados} onChange={e => setNewProfileAtestados(e.target.checked)} className="rounded text-emerald-600 focus:ring-emerald-500" />
-                    Biblioteca de Atestados Técnicos
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileEmpresas} onChange={e => setNewProfileEmpresas(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
-                    Gestão Geral de Empresas
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileUsuariosPerfis} onChange={e => setNewProfileUsuariosPerfis(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
-                    Gestão de Perfis de Acesso e Usuários
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
-                    <input type="checkbox" checked={newProfileAjustes} onChange={e => setNewProfileAjustes(e.target.checked)} className="rounded text-emerald-650 focus:ring-emerald-500" />
-                    Configurações do Sistema e Supabase
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
-              <button 
-                onClick={() => setShowAddProfileModal(false)}
-                className="px-4 py-2 text-sm text-slate-500 hover:bg-slate-100 rounded font-semibold transition"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleAddProfile}
-                className="px-4 py-2 text-sm text-white rounded font-semibold transition shadow-sm"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Criar Perfil
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- ADD COMPANY DIALOG MODAL --- */}
-      {showAddCompanyModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl max-w-md w-full gap-4 flex flex-col shadow-2xl border border-slate-150 animate-fade-in">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-slate-800 text-sm">Cadastrar Empresa Multi-Empresa</h3>
-              <button onClick={() => setShowAddCompanyModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-            
-            <div className="space-y-3.5 text-xs">
-              <div>
-                <label className="block text-slate-600 font-semibold mb-1">Razão Social / Nome Fantasia:</label>
-                <input
-                  type="text"
-                  value={newCompanyName}
-                  onChange={(e) => setNewCompanyName(e.target.value)}
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded focus:outline-none"
-                  placeholder="EX: Licitacoes Sul do Brasil Ltda"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Chave Unificadora (Sigla):</label>
-                  <input
-                    type="text"
-                    value={newCompanyKey}
-                    onChange={(e) => setNewCompanyKey(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded uppercase font-mono"
-                    placeholder="EX: LICSUL"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">CNPJ:</label>
-                  <input
-                    type="text"
-                    value={newCompanyCnpj}
-                    onChange={(e) => setNewCompanyCnpj(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-mono"
-                    placeholder="EX: 00.000.000/0001-00"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowAddCompanyModal(false)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddCompany}
-                className="bg-[#091426] text-white font-bold px-4 py-2 rounded text-xs hover:bg-slate-800"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Criar Empresa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- ADD TENDER DIALOG MODAL --- */}
-      {showAddBidModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl max-w-lg w-full flex flex-col shadow-2xl border animate-fade-in gap-4">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-slate-800 text-sm">Adicionar Edital Manualmente</h3>
-              <button onClick={() => setShowAddBidModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-
-            <div className="space-y-3.5 text-xs overflow-y-auto max-h-[400px] pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Modalidade:</label>
-                  <select
-                    value={newBidModalidade}
-                    onChange={(e) => setNewBidModalidade(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded"
-                  >
-                    <option value="Pregão Eletrônico">Pregão Eletrônico</option>
-                    <option value="Concorrência">Concorrência</option>
-                    <option value="Tomada de Preços">Tomada de Preços</option>
-                    <option value="Carta Convite">Carta Convite</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Órgão Licitador:</label>
-                  <input
-                    type="text"
-                    value={newBidOrgao}
-                    onChange={(e) => setNewBidOrgao(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-semibold"
-                    placeholder="EX: Ministério da Saúde"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-semibold mb-1">Objeto do Edital:</label>
-                <textarea
-                  value={newBidObjeto}
-                  onChange={(e) => setNewBidObjeto(e.target.value)}
-                  className="w-full h-20 p-2 border border-slate-200 rounded leading-relaxed"
-                  placeholder="EX: Contratação de serviços continuados de fornecimento de sistemas integrados..."
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Valor Estimado Máximo (R$):</label>
-                  <input
-                    type="number"
-                    value={newBidValor}
-                    onChange={(e) => setNewBidValor(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Empresa Vinculadora:</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={activeCompanyKey}
-                    className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded font-mono font-bold text-slate-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Prazo de Proposta (YYYY-MM-DD HH:mm):</label>
-                  <input
-                    type="text"
-                    value={newBidPrazoProp}
-                    onChange={(e) => setNewBidPrazoProp(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Prazo de Abertura (Sessão Pública):</label>
-                  <input
-                    type="text"
-                    value={newBidPrazoAber}
-                    onChange={(e) => setNewBidPrazoAber(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-semibold mb-1">Documentos Obrigatórios de Habilitação (separados por vírgula):</label>
-                <input
-                  type="text"
-                  value={newBidDocs}
-                  onChange={(e) => setNewBidDocs(e.target.value)}
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded"
-                  placeholder="EX: Cartão CNPJ, CND Federal, Balanço Patrimonial, CREA"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-600 font-semibold mb-1">Exigências Específicas de Capacidade Técnica (Atestados):</label>
-                <textarea
-                  value={newBidExigencias}
-                  onChange={(e) => setNewBidExigencias(e.target.value)}
-                  className="w-full h-16 p-2 border border-slate-200 rounded leading-relaxed italic"
-                  placeholder="EX: Atestado comprovando fornecimento de no mínimo 30 monitores cardíacos..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowAddBidModal(false)}
-                className="bg-slate-150 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs border"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddBid}
-                className="bg-[#091426] text-white font-bold px-4 py-2 rounded text-xs hover:bg-slate-800"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Cadastrar Prazo
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* --- CADASTRAR ATESTADO MANUAL MODAL --- */}
-      {showAddCertModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 rounded-xl max-w-2xl w-full flex flex-col shadow-2xl border animate-fade-in gap-4">
-            
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-slate-800 text-sm">Cadastrar Atestado de Capacidade Técnica</h3>
-              <button onClick={() => setShowAddCertModal(false)}><X className="w-5 h-5 text-slate-400" /></button>
-            </div>
-
-            <div className="space-y-4 text-xs overflow-y-auto max-h-[400px] pr-2">
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Nome / Identificador do Atestado:</label>
-                  <input
-                    type="text"
-                    value={newCertName}
-                    onChange={(e) => setNewCertName(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded"
-                    placeholder="EX: Atestado Albert Einstein UTI"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Órgão / Empresa Emissora:</label>
-                  <input
-                    type="text"
-                    value={newCertEmissor}
-                    onChange={(e) => setNewCertEmissor(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded"
-                    placeholder="EX: Sociedade Beneficente Albert Einstein"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Data de Emissão:</label>
-                  <input
-                    type="text"
-                    value={newCertData}
-                    onChange={(e) => setNewCertData(e.target.value)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 font-semibold mb-1">Empresa Proprietária do Acervo:</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={activeCompanyKey}
-                    className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded font-mono font-bold text-slate-500"
-                  />
-                </div>
-              </div>
-
-              {/* Dynamic row creator (Requirement 4.d) */}
-              <div className="space-y-2 border-t pt-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-[11px] text-slate-600 uppercase">Itens Executados Comprovados no Atestado:</span>
-                  <button
-                    onClick={handleAddNewCertRow}
-                    className="text-red-650 hover:underline flex items-center gap-0.5 text-[10.5px] font-bold"
-                  >
-                    + Adicionar Linha de Item
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {newCertItems.map((item, idx) => (
-                    <div key={idx} className="p-3 bg-slate-50 rounded border border-slate-250 flex flex-col md:flex-row gap-3 items-end">
-                      
-                      <div className="text-[11px] font-bold text-slate-400 self-center">#{item.item_numero}</div>
-
-                      <div className="flex-1 min-w-[200px]">
-                        <label className="block text-[9px] font-semibold text-slate-400 mb-0.5">Descrição do Serviço / Fornecimento:</label>
-                        <input
-                          type="text"
-                          value={item.descricao}
-                          onChange={(e) => handleUpdateCertRow(idx, 'descricao', e.target.value)}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded"
-                          placeholder="Ex: Fornecimento de monitor multiparamétrico de UTI..."
-                        />
-                      </div>
-
-                      <div className="w-20">
-                        <label className="block text-[9px] font-semibold text-slate-400 mb-0.5">Qtd:</label>
-                        <input
-                          type="number"
-                          value={item.quantidade}
-                          onChange={(e) => handleUpdateCertRow(idx, 'quantidade', Number(e.target.value))}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded font-bold"
-                        />
-                      </div>
-
-                      <div className="w-16">
-                        <label className="block text-[9px] font-semibold text-slate-400 mb-0.5">Unidade:</label>
-                        <input
-                          type="text"
-                          value={item.unidade}
-                          onChange={(e) => handleUpdateCertRow(idx, 'unidade', e.target.value)}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-center font-mono"
-                          placeholder="un, m2"
-                        />
-                      </div>
-
-                      <div className="w-24">
-                        <label className="block text-[9px] font-semibold text-slate-400 mb-0.5">Relevância:</label>
-                        <select
-                          value={item.relevancia_tecnica}
-                          onChange={(e) => handleUpdateCertRow(idx, 'relevancia_tecnica', e.target.value)}
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded font-semibold text-[11px]"
-                        >
-                          <option value="Alta">Alta</option>
-                          <option value="Média">Média</option>
-                          <option value="Baixa">Baixa</option>
-                        </select>
-                      </div>
-
-                      <button
-                        onClick={() => handleRemoveCertRow(idx)}
-                        className="p-1.5 hover:bg-red-100 rounded text-red-500 hover:text-red-700"
-                        title="Remover linha"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
-
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowAddCertModal(false)}
-                className="bg-slate-150 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs border"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveCertificate}
-                className="bg-[#091426] text-white font-bold px-4 py-2 rounded text-xs hover:bg-slate-800"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Salvar Acervo Linha a Linha
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
