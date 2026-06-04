@@ -38,10 +38,21 @@ import {
   ThumbsUp,
   Award,
   Globe,
+  Filter,
   Upload,
   Copy,
   Menu,
-  Lock
+  Lock,
+  LayoutDashboard,
+  MapPin,
+  Banknote,
+  Layers,
+  Landmark,
+  Flag,
+  Users,
+  Tags,
+  BarChart3,
+  Share2
 } from 'lucide-react';
 
 import {
@@ -186,7 +197,7 @@ export default function Home() {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
 
   // Active Nav Tab state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'ajustes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'visao_geral' | 'visao_mapa' | 'adesao_edital' | 'emendas' | 'projetos' | 'editais' | 'ministerios' | 'partidos' | 'deputados' | 'areas_tematicas' | 'relatorios' | 'perfis' | 'usuarios' | 'configuracoes'>('visao_geral');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Supabase connection setting state
@@ -534,7 +545,7 @@ export default function Home() {
     if (user.email.toLowerCase().trim() === 'admin') {
       // General admin can always switch and see all companies
       setActiveCompanyKey('LICITATECH');
-      setActiveTab('dashboard');
+      setActiveTab('visao_geral');
     } else if (user.chave_empresa) {
       // For general users, automatically load their company and lock it
       setActiveCompanyKey(user.chave_empresa);
@@ -542,16 +553,16 @@ export default function Home() {
       // Determine their first permitted tab
       const profile = perfis.find(p => p.id === user.perfilId);
       if (profile) {
-        if (profile.dashboard) setActiveTab('dashboard');
-        else if (profile.agenda) setActiveTab('agenda');
-        else if (profile.scanner) setActiveTab('scanner');
-        else if (profile.atestados) setActiveTab('atestados');
-        else if (profile.empresas) setActiveTab('empresas');
+        if (profile.dashboard) setActiveTab('visao_geral');
+        else if (profile.agenda) setActiveTab('visao_geral');
+        else if (profile.scanner) setActiveTab('visao_geral');
+        else if (profile.atestados) setActiveTab('visao_geral');
+        else if (profile.empresas) setActiveTab('visao_geral');
         else if (profile.usuarios_perfis) setActiveTab('usuarios');
-        else if (profile.ajustes) setActiveTab('ajustes');
+        else if (profile.ajustes) setActiveTab('configuracoes');
       } else {
         // Fallback default
-        setActiveTab('dashboard');
+        setActiveTab('visao_geral');
       }
     }
 
@@ -932,7 +943,7 @@ export default function Home() {
     setLicitacoes([freshLicitacao, ...licitacoes]);
     alert("O edital analisado foi importado com sucesso na sua base de Licitações!");
     setScannerResult(null);
-    setActiveTab('dashboard');
+    setActiveTab('visao_geral');
   };
 
   // Format dynamic expiration display
@@ -1061,180 +1072,79 @@ export default function Home() {
       `}} />
       
       {/* --- DESKTOP FIXED SIDEBAR NAVIGATION --- */}
-      <aside className="hidden md:flex min-w-[260px] max-w-[260px] bg-[#0F172A] flex-col text-slate-300 relative z-40 border-r border-slate-800" style={{ backgroundColor: primaryColor }}>
-        {/* Modern high-density branding component */}
-        <div className="p-6 flex items-center gap-3 border-b border-slate-800 bg-slate-950/20">
-          <div className="w-8 h-8 shrink-0 relative">
-            <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain rounded" />
+      <aside className="hidden md:flex min-w-[260px] max-w-[260px] bg-slate-50 flex-col text-slate-600 relative z-40 border-r border-slate-200 shadow-sm">
+        {/* Profile Card */}
+        <div className="flex flex-col items-center pt-10 pb-6 border-b border-slate-200/50">
+          <div className="w-24 h-24 relative mb-3 rounded-full overflow-hidden border-4 border-white shadow-sm">
+            <Image src="https://picsum.photos/seed/carol/200/200" alt="Carol Dartora" fill className="object-cover" />
           </div>
-          <div>
-            <h1 className="text-white font-bold text-base tracking-tight leading-none">BUYGOV <span className="text-blue-200 font-light text-[10px] block mt-1 tracking-wider uppercase">PLATAFORMA</span></h1>
-          </div>
-        </div>
-
-        {/* Enterprise Context switcher inside Navbar sidebar with High Density tags */}
-        <div className="p-4 border-b border-slate-800/65 bg-slate-950/25">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex justify-between">
-            <span>Corporate Active Connection</span>
-            <span className="text-blue-500 font-mono text-[9px] uppercase tracking-tighter">● Online</span>
-          </label>
-          <div className="relative">
-            <select
-              value={activeCompanyKey}
-              onChange={(e) => setActiveCompanyKey(e.target.value)}
-              disabled={currentUser?.email !== 'admin'}
-              className="w-full py-1.5 px-2 bg-slate-800 border border-slate-700 rounded text-xs font-semibold text-white focus:outline-none focus:border-blue-550 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
-            >
-              {empresas.map(emp => (
-                <option key={emp.id} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
-              ))}
-            </select>
-          </div>
-          {currentUser?.email !== 'admin' && (
-            <span className="block mt-1 text-[9px] text-amber-400 font-mono italic">
-              Empresa vinculada obrigatória no login.
-            </span>
-          )}
-          <span className="block mt-1.5 text-[9px] text-slate-400 font-mono">
-            CNPJ ID: {currentCompany?.cnpj}
-          </span>
+          <h2 className="text-lg font-extrabold text-slate-800 tracking-tight">Carol Dartora</h2>
+          <p className="text-xs font-bold text-[#E60000] uppercase tracking-wider mt-1">PT - PR</p>
         </div>
 
         {/* Sidebar Nav Links */}
-        <nav className="flex-1 p-4 space-y-1">
-          {hasTabPermission('dashboard') && (
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          {[
+            { id: 'visao_geral', label: 'Visão Geral', icon: LayoutDashboard },
+            { id: 'visao_mapa', label: 'Visão Mapa', icon: MapPin },
+            { id: 'adesao_edital', label: 'Adesão Edital', icon: FileText },
+            { id: 'emendas', label: 'Emendas', icon: Banknote },
+            { id: 'projetos', label: 'Projetos', icon: Layers },
+            { id: 'editais', label: 'Editais', icon: FileText },
+            { id: 'ministerios', label: 'Ministérios', icon: Landmark },
+            { id: 'partidos', label: 'Partidos', icon: Flag },
+            { id: 'deputados', label: 'Deputados', icon: Users },
+            { id: 'areas_tematicas', label: 'Áreas Temáticas', icon: Tags },
+            { id: 'relatorios', label: 'Relatórios', icon: BarChart3 },
+            { id: 'perfis', label: 'Perfis', icon: Shield },
+            { id: 'usuarios', label: 'Usuários', icon: User },
+          ].map(item => (
             <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+              key={item.id}
+              onClick={() => setActiveTab(item.id as any)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${
+                activeTab === item.id 
+                  ? 'bg-red-50 text-[#E60000] border-l-2 border-[#E60000]' 
+                  : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800 border-l-2 border-transparent'
+              }`}
             >
-              <Briefcase className="w-4 h-4 shrink-0" />
-              <span>Dashboard</span>
+              <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+              <span>{item.label}</span>
             </button>
-          )}
-          {hasTabPermission('agenda') && (
-            <button
-              onClick={() => setActiveTab('agenda')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'agenda' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <Calendar className="w-4 h-4 shrink-0" />
-              <span>Agenda & Prazos</span>
-              {companyBids.length > 0 && (
-                <span className="ml-auto bg-red-650 text-white text-[9px] px-1.5 py-0.5 rounded font-extrabold font-mono">
-                  {companyBids.length}
-                </span>
-              )}
-            </button>
-          )}
-          {hasTabPermission('scanner') && (
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-              <span>Scanner Edital IA</span>
-            </button>
-          )}
-          {hasTabPermission('atestados') && (
-            <button
-              onClick={() => setActiveTab('atestados')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'atestados' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <FileText className="w-4 h-4 shrink-0" />
-              <span>Atestados Técnicos</span>
-            </button>
-          )}
-          {hasTabPermission('empresas') && (
-            <button
-              onClick={() => setActiveTab('empresas')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <Building className="w-4 h-4 shrink-0" />
-              <span>Empresas</span>
-            </button>
-          )}
-          {hasTabPermission('usuarios') && (
-            <button
-              onClick={() => setActiveTab('usuarios')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <User className="w-4 h-4 shrink-0" />
-              <span>Usuários e Perfis</span>
-            </button>
-          )}
-          {hasTabPermission('ajustes') && (
-            <button
-              onClick={() => setActiveTab('ajustes')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-medium rounded-md transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-            >
-              <Settings className="w-4 h-4 shrink-0" />
+          ))}
+
+          <div className="pt-6 pb-2">
+            <button onClick={() => setActiveTab('configuracoes')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 rounded-lg transition-all border-l-2 border-transparent">
+              <Settings className="w-4 h-4 shrink-0 stroke-2" />
               <span>Configurações</span>
             </button>
-          )}
+          </div>
         </nav>
 
-        {/* Bottom session timer footer info */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/40 text-xs mt-auto">
-          <div className="flex items-center gap-2 mb-2">
-            <User className="w-3.5 h-3.5 text-red-400" />
-            <div className="truncate">
-              <p className="font-semibold text-white truncate text-[11px]">{currentUser.nome}</p>
-              <p className="text-[9px] text-slate-400 uppercase font-mono">
-                {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
-              </p>
-            </div>
-          </div>
-          <div className="p-2 bg-slate-900 rounded border border-slate-800 text-[10px] text-slate-400 flex items-center justify-between mb-3">
-            <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-red-500" /> Timeout:</span>
-            <span className="font-mono text-white font-bold animate-pulse">{formatTimeMinutes(secondsRemaining)}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 mb-3 text-[10px] text-slate-405 font-mono">
-            <div className={`w-2 h-2 rounded-full ${supabaseMode === 'connected' ? 'bg-green-500' : 'bg-amber-505 animate-pulse'}`}></div>
-            <span>Supabase: {supabaseMode === 'connected' ? 'Conectado' : 'Offline'}</span>
-          </div>
-
+        {/* Action Buttons & Bottom section */}
+        <div className="p-4 flex flex-col gap-2 mt-auto pb-6">
+          <button className="w-full py-2.5 bg-[#E60000] hover:bg-red-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm">
+            <Plus className="w-4 h-4 stroke-[3px]" /> NOVA EMENDA
+          </button>
+          <button className="w-full py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm">
+            <Plus className="w-4 h-4 stroke-[3px]" /> NOVO PROJETO
+          </button>
           <button
             onClick={handleLogout}
-            className="w-full mt-2 py-1.5 hover:bg-red-950 hover:text-white text-slate-405 text-[11px] font-bold rounded border border-slate-850 hover:border-red-950 flex items-center justify-center gap-1 transition"
+            className="w-full mt-4 py-2 text-slate-400 hover:text-slate-800 text-sm font-semibold flex items-center justify-start px-2 gap-2 transition"
           >
-            <LogOut className="w-3 h-3" /> Desconectar
+            <LogOut className="w-4 h-4" /> Sair
           </button>
         </div>
       </aside>
 
       {/* --- MOBILE VIEW NAVBAR TOP --- */}
-      <header className="md:hidden sticky top-0 w-full z-45 bg-slate-900 text-white px-4 py-3 flex justify-between items-center shadow-lg" style={{ backgroundColor: primaryColor }}>
+      <header className="md:hidden sticky top-0 w-full z-45 bg-white text-slate-800 border-b border-slate-200 px-4 py-3 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
-            className="p-1 focus:outline-none hover:bg-slate-800 rounded transition"
-            aria-label="Menu"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5 text-white" /> : <Menu className="w-5 h-5 text-white" />}
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-1 focus:outline-none hover:bg-slate-100 rounded transition">
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-          <div className="w-5 h-5 relative">
-            <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain rounded-sm" />
-          </div>
-          <h1 className="font-bold text-sm tracking-tight">BuyGov</h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={activeCompanyKey}
-            onChange={(e) => setActiveCompanyKey(e.target.value)}
-            disabled={currentUser?.email !== 'admin'}
-            className="py-1 px-1.5 bg-slate-800 border border-slate-700 text-[10.5px] rounded text-white disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {empresas.map(emp => (
-              <option key={emp.id} value={emp.chave_empresa}>{emp.chave_empresa}</option>
-            ))}
-          </select>
-
-          <span className="text-[10px] font-mono text-white font-bold">{formatTimeMinutes(secondsRemaining)}</span>
-
-          <button onClick={handleLogout} className="text-slate-400 hover:text-white">
-            <LogOut className="w-4 h-4" />
-          </button>
+          <h1 className="font-bold tracking-tight">Democracia Digital</h1>
         </div>
       </header>
 
@@ -1245,2885 +1155,583 @@ export default function Home() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden w-full bg-slate-900 border-b border-slate-800 text-white z-40 flex flex-col shadow-xl overflow-hidden font-sans"
-            style={{ backgroundColor: primaryColor }}
+            className="md:hidden w-full bg-slate-50 border-b border-slate-200 text-slate-700 z-40 flex flex-col shadow-xl overflow-hidden font-sans"
           >
-            <div className="px-4 py-3 space-y-1 bg-slate-950/20">
-              <div className="text-[10px] text-slate-300 font-bold uppercase tracking-wider mb-2">Módulos de Acesso</div>
-              
-              {hasTabPermission('dashboard') && (
-                <button
-                  onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'dashboard' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <Briefcase className="w-4 h-4 text-slate-450" />
-                  <span>Dashboard Geral</span>
+            <div className="px-4 py-3 space-y-1">
+              {['visao_geral', 'visao_mapa', 'adesao_edital', 'emendas', 'projetos', 'editais', 'ministerios', 'partidos', 'deputados', 'areas_tematicas', 'relatorios', 'perfis', 'usuarios'].map(id => (
+                <button key={id} onClick={() => { setActiveTab(id as any); setMobileMenuOpen(false); }} className="w-full text-left py-2 font-semibold">
+                  {id.replace('_', ' ').toUpperCase()}
                 </button>
-              )}
-
-              {hasTabPermission('agenda') && (
-                <button
-                  onClick={() => { setActiveTab('agenda'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'agenda' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <Calendar className="w-4 h-4 text-slate-450" />
-                  <span>Agenda & Prazos</span>
-                  {companyBids.length > 0 && (
-                    <span className="ml-auto bg-red-650 text-white text-[9px] px-1.5 py-0.5 rounded font-mono font-extrabold">
-                      {companyBids.length}
-                    </span>
-                  )}
-                </button>
-              )}
-
-              {hasTabPermission('scanner') && (
-                <button
-                  onClick={() => { setActiveTab('scanner'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'scanner' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Scanner de Editais IA</span>
-                </button>
-              )}
-
-              {hasTabPermission('atestados') && (
-                <button
-                  onClick={() => { setActiveTab('atestados'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'atestados' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <FileText className="w-4 h-4 text-slate-450" />
-                  <span>Atestados Técnicos</span>
-                </button>
-              )}
-
-              {hasTabPermission('empresas') && (
-                <button
-                  onClick={() => { setActiveTab('empresas'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'empresas' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <Building className="w-4 h-4 text-slate-450" />
-                  <span>Empresas</span>
-                </button>
-              )}
-
-              {hasTabPermission('usuarios') && (
-                <button
-                  onClick={() => { setActiveTab('usuarios'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'usuarios' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <User className="w-4 h-4 text-slate-450" />
-                  <span>Usuários & Perfis</span>
-                </button>
-              )}
-
-              {hasTabPermission('ajustes') && (
-                <button
-                  onClick={() => { setActiveTab('ajustes'); setMobileMenuOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded transition-colors ${activeTab === 'ajustes' ? 'bg-blue-600 text-white font-bold' : 'text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <Settings className="w-4 h-4 text-slate-450" />
-                  <span>Configurações & Supabase</span>
-                </button>
-              )}
-            </div>
-
-            <div className="p-4 border-t border-slate-800 bg-slate-950/40 text-xs">
-              <div className="flex items-center gap-2 justify-between">
-                <div className="flex items-center gap-2 truncate">
-                  <User className="w-4 h-4 text-red-400 shrink-0" />
-                  <div className="truncate">
-                    <p className="font-semibold text-white truncate text-[11px]">{currentUser.nome}</p>
-                    <p className="text-[9px] text-slate-400 uppercase font-mono">
-                      {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                  className="px-2.5 py-1 text-[10px] uppercase font-bold text-red-400 bg-red-950/30 border border-red-900 rounded flex items-center gap-1 hover:bg-red-900 hover:text-white transition"
-                >
-                  <LogOut className="w-3 h-3" /> Sair
-                </button>
-              </div>
+              ))}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* --- DESKTOP HIGH-DENSITY HEADERS AND CONTENT WRAPPERS --- */}
-      <main className="flex-grow flex flex-col min-h-screen bg-[#F8FAFC]">
+      <main className="flex-grow flex flex-col min-h-screen bg-[#F9FAFB]">
         {/* Universal Desk/Header */}
-        <header className="hidden md:flex h-14 bg-white border-b border-slate-200 px-6 items-center justify-between shrink-0">
+        <header className="hidden md:flex h-[72px] bg-white border-b border-slate-200 px-6 items-center justify-between shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-bold text-slate-400 leading-none">
-                {currentUser?.email === 'admin' ? 'Multi-Empresa Ativa' : 'Empresa Vinculada (Sessão)'}
-              </span>
-              <select
-                value={activeCompanyKey}
-                onChange={(e) => setActiveCompanyKey(e.target.value)}
-                disabled={currentUser?.email !== 'admin'}
-                className="text-sm font-semibold text-slate-805 bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none mt-1 disabled:opacity-75 disabled:cursor-not-allowed"
-              >
-                {empresas.map(emp => (
-                  <option key={emp.id} value={emp.chave_empresa}>{emp.nome}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 flex items-center justify-center -ml-2">
+                <svg width="24" height="24" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M20 0V40M0 20H40" stroke="#0F172A" strokeWidth="6" />
+                  <path d="M20 0L40 20L20 40L0 20L20 0Z" stroke="#E60000" strokeWidth="6" />
+                  <circle cx="20" cy="20" r="10" fill="#0EA5E9" />
+                </svg>
+              </div>
+              <h1 className="text-xl font-extrabold text-slate-800 tracking-tight flex items-center">
+                DEMOCRACIA DIGITAL 
+                <span className="text-slate-300 mx-3 font-normal text-2xl leading-none">|</span>
+                <span className="text-slate-500 font-medium text-[15px]">Painel do Parlamentar</span>
+              </h1>
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="px-2.5 py-1 bg-red-50 border border-red-200 rounded">
-                <span className="text-[10px] text-red-650 font-bold uppercase animate-pulse">Prazos Críticos Ativos</span>
+            <div className="flex items-center gap-4">
+              <select className="border border-slate-200 bg-white text-slate-700 text-sm font-bold py-2.5 px-4 rounded-full focus:outline-none focus:ring-2 focus:ring-slate-200 shadow-sm min-w-[200px]">
+                <option>Carol Dartora (PT-PR)</option>
+              </select>
+              <div className="relative shadow-sm rounded-full">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar emendas e projetos..." 
+                  className="pl-10 pr-4 py-2.5 w-72 border border-slate-200 bg-slate-50 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:bg-white transition-all font-medium"
+                />
               </div>
             </div>
-            <div className="h-8 w-px bg-slate-200"></div>
-            <div className="flex items-center gap-3 text-right">
-              <div>
-                <div className="text-xs font-bold text-slate-800 leading-none">{currentUser.nome}</div>
-                <div className="text-[9px] text-slate-500 italic uppercase tracking-tighter leading-none mt-1">
-                  {perfis.find(p => p.id === currentUser.perfilId)?.nome || (currentUser.email === 'admin' ? 'Administrador Geral' : 'Usuário')}
-                </div>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-bold text-xs uppercase shadow-sm">
-                {currentUser.nome.substring(0, 2)}
-              </div>
+            
+            <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden shrink-0">
+               <User className="w-6 h-6 text-white/90" />
             </div>
           </div>
         </header>
 
         {/* --- MAIN INNER CONTENT WRAPPER --- */}
-        <div className="flex-grow overflow-y-auto px-4 md:px-6 py-5 max-w-7xl mx-auto w-full relative">
+        <div className="flex-grow overflow-y-auto px-4 md:px-6 py-5 mx-auto w-full max-w-[1600px] relative">
           <AnimatePresence mode="wait">
           
-          {/* DASHBOARD TAB SCREEN */}
-          {activeTab === 'dashboard' && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-5"
-            >
-              {isAddingBid ? (
-                /* --- ADD TENDER/LICITACAO OVERLAY --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-850 text-sm">Adicionar Novo Edital de Licitação</h3>
-                      <p className="text-[11px] text-slate-400">Insira as informações básicas do novo processo licitatório</p>
-                    </div>
-                    <button onClick={() => { setIsAddingBid(false); setNewBidObjeto(''); setNewBidOrgao(''); }} className="text-slate-400 hover:text-slate-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Órgão Licitador:</label>
-                      <input
-                        type="text"
-                        value={newBidOrgao}
-                        onChange={(e) => setNewBidOrgao(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                        placeholder="EX: Tribunal de Justiça de São Paulo (TJ-SP)"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Modalidade:</label>
-                      <select
-                        value={newBidModalidade}
-                        onChange={(e) => setNewBidModalidade(e.target.value as any)}
-                        className="w-full px-3 py-2 border border-slate-205 rounded bg-white focus:outline-none font-semibold"
-                      >
-                        <option value="Pregão Eletrônico">Pregão Eletrônico</option>
-                        <option value="Concorrência Pública">Concorrência Pública</option>
-                        <option value="Diálogo Competitivo">Diálogo Competitivo</option>
-                        <option value="Tomada de Preços">Tomada de Preços</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Objeto Resumido da Licitação:</label>
-                      <textarea
-                        rows={3}
-                        value={newBidObjeto}
-                        onChange={(e) => setNewBidObjeto(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-202 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="EX: Contratação de empresa especializada para prestação de serviços de suporte técnico..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Valor Estimado Total (R$):</label>
-                      <input
-                        type="number"
-                        value={newBidValor}
-                        onChange={(e) => setNewBidValor(Number(e.target.value))}
-                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Prazo Envio Proposta:</label>
-                      <input
-                        type="date"
-                        value={newBidPrazoProp}
-                        onChange={(e) => setNewBidPrazoProp(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Prazo Abertura e Divulgação:</label>
-                      <input
-                        type="date"
-                        value={newBidPrazoAber}
-                        onChange={(e) => setNewBidPrazoAber(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-205 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Exigências Técnicas Resumidas para Atestados:</label>
-                      <input
-                        type="text"
-                        value={newBidExigencias}
-                        onChange={(e) => setNewBidExigencias(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-205 rounded focus:outline-none font-semibold"
-                        placeholder="EX: Comprovação de acervo técnico compatível"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Documentos Obrigatórios (Separados por vírgula):</label>
-                      <input
-                        type="text"
-                        value={newBidDocs}
-                        onChange={(e) => setNewBidDocs(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-205 rounded focus:outline-none font-semibold"
-                        placeholder="Regularidade Fiscal, CNPJ Ativo, Balanço Patrimonial, Inscrição Estadual"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => { setIsAddingBid(false); setNewBidObjeto(''); setNewBidOrgao(''); }}
-                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleAddBid}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Criar Lote Licitatório
-                    </button>
-                  </div>
+          {/* VISÃO GERAL */}
+          {activeTab === 'visao_geral' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end">
+                <div>
+                  <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">VISÃO CONSOLIDADA</h3>
+                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Dep. Carol Dartora</h2>
+                  <p className="text-sm text-slate-500 font-medium">Gerenciamento de emendas e projetos parlamentares - 56ª Legislatura</p>
                 </div>
-              ) : editingBid ? (
-                /* --- EDIT TENDER/LICITACAO OVERLAY --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-850 text-sm">Editar Edital de Licitação</h3>
-                      <p className="text-[11px] text-slate-400">Modifique os parâmetros registrados desse edital ativo</p>
-                    </div>
-                    <button onClick={() => setEditingBid(null)} className="text-slate-400 hover:text-slate-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Órgão Licitador:</label>
-                      <input
-                        type="text"
-                        value={editingBid.orgao}
-                        onChange={(e) => setEditingBid({ ...editingBid, orgao: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Modalidade:</label>
-                      <select
-                        value={editingBid.modalidade}
-                        onChange={(e) => setEditingBid({ ...editingBid, modalidade: e.target.value as any })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded bg-white focus:outline-none font-semibold"
-                      >
-                        <option value="Pregão Eletrônico">Pregão Eletrônico</option>
-                        <option value="Concorrência Pública">Concorrência Pública</option>
-                        <option value="Diálogo Competitivo">Diálogo Competitivo</option>
-                        <option value="Tomada de Preços">Tomada de Preços</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Objeto Resumido da Licitação:</label>
-                      <textarea
-                        rows={3}
-                        value={editingBid.objeto}
-                        onChange={(e) => setEditingBid({ ...editingBid, objeto: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded focus:outline-none focus:ring-1 focus:ring-blue-550 font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Valor Estimado Total (R$):</label>
-                      <input
-                        type="number"
-                        value={editingBid.valor_estimado}
-                        onChange={(e) => setEditingBid({ ...editingBid, valor_estimado: Number(e.target.value) })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Prazo Envio Proposta:</label>
-                      <input
-                        type="date"
-                        value={editingBid.prazo_proposta}
-                        onChange={(e) => setEditingBid({ ...editingBid, prazo_proposta: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Prazo Abertura e Divulgação:</label>
-                      <input
-                        type="date"
-                        value={editingBid.prazo_abertura}
-                        onChange={(e) => setEditingBid({ ...editingBid, prazo_abertura: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-201 rounded font-mono focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Exigências Técnicas Resumidas para Atestados:</label>
-                      <input
-                        type="text"
-                        value={editingBid.exigencias_atestados}
-                        onChange={(e) => setEditingBid({ ...editingBid, exigencias_atestados: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-251 rounded focus:outline-none font-semibold"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Documentos Obrigatórios (Separados por vírgula):</label>
-                      <input
-                        type="text"
-                        value={editingBid.documentos_obrigatorios.join(', ')}
-                        onChange={(e) => setEditingBid({ ...editingBid, documentos_obrigatorios: e.target.value.split(',').map(d => d.trim()) })}
-                        className="w-full px-3 py-2 border border-slate-251 rounded focus:outline-none font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => setEditingBid(null)}
-                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleSaveEditBid(editingBid)}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Salvar Alterações
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Critical Alert Bar */}
-              <div className="bg-red-50 border border-red-200 p-4 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
                 <div className="flex gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-650 shrink-0 mt-0.5" />
+                  <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 bg-white shadow-sm hover:bg-slate-50">
+                    <Share2 className="w-4 h-4" /> Compartilhar
+                  </button>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold shadow-sm hover:bg-red-700">
+                    <Download className="w-4 h-4" /> Gerar PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                    <span className="flex items-center gap-1.5"><Filter className="w-3.5 h-3.5" /> FILTROS INTELIGENTES</span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
+                      <Calendar className="w-4 h-4 text-red-500" /> ANO <span className="bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full text-xs font-bold border border-slate-200">2026</span> <span className="text-red-600 font-bold text-xs uppercase tracking-wider">TODOS</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
+                      <MapPin className="w-4 h-4 text-slate-400" /> Município: Todos <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
+                      <Tags className="w-4 h-4 text-slate-400" /> Verba: Todas <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600 font-medium cursor-pointer">
+                      <Layers className="w-4 h-4 text-slate-400" /> Categoria: Todas <ChevronDown className="w-3.5 h-3.5" />
+                    </div>
+                  </div>
+                </div>
+                <button className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" /> RESETAR FILTROS
+                </button>
+              </div>
+
+              {/* KPI Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-gradient-to-r from-red-50 to-white p-5 rounded-xl border border-red-100 shadow-sm relative overflow-hidden">
+                  <div className="absolute right-0 top-0 h-full w-24 bg-red-100/50 rounded-l-full -mr-12"></div>
+                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">VERBA DESTINADA (TOTAL)</h4>
+                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 25.5M</div>
+                  <div className="mt-3 text-xs font-bold text-red-600 flex items-center gap-1"><TrendingUp className="w-3 h-3" /> Atualizado</div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">TOTAL EXECUTADO</h4>
+                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 7.0M</div>
+                  <div className="mt-3 text-xs font-bold text-red-600 flex items-center gap-1"><BarChart3 className="w-3 h-3" /> 27% de execução</div>
+                </div>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                  <h4 className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">A EMPENHAR</h4>
+                  <div className="mt-2 text-3xl font-extrabold text-slate-800 tracking-tight">R$ 18.6M</div>
+                  <div className="mt-3 text-xs font-medium text-emerald-600 flex items-center gap-1"><Briefcase className="w-3 h-3" /> Disponível para empenho</div>
+                </div>
+                <div className="bg-red-600 p-5 rounded-xl shadow-md text-white">
+                  <h4 className="text-[10px] uppercase font-bold text-red-200 tracking-wider">INICIATIVAS ATIVAS</h4>
+                  <div className="mt-1 text-4xl font-extrabold tracking-tight">5</div>
+                  <div className="mt-2 text-xs font-medium text-white flex items-center gap-1"><Tags className="w-3 h-3" /> Meta de execução acelerada</div>
+                </div>
+              </div>
+
+              {/* Charts area */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                  <div className="flex justify-between items-center mb-10">
+                    <h3 className="font-bold text-slate-800">Histórico de Execução</h3>
+                    <div className="flex items-center gap-4 text-xs font-semibold text-slate-500">
+                      <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-yellow-400 rounded-sm"></div> Empenhado</span>
+                      <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 bg-red-600 rounded-sm"></div> Pago</span>
+                    </div>
+                  </div>
+                  <div className="h-48 border-b-2 border-slate-100 flex items-end gap-2 justify-between px-2">
+                    {/* Mock Bars */}
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[2%]" /><div className="w-full bg-yellow-400 h-[2%]" /></div>
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[4%]" /><div className="w-full bg-yellow-400 h-[10%]" /></div>
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[15%]" /></div>
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[5%]" /><div className="w-full bg-yellow-400 h-[2%]" /></div>
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[80%]" /></div>
+                    <div className="flex flex-col items-center gap-1 w-full"><div className="w-full bg-red-600 h-[2%]" /></div>
+                  </div>
+                  <div className="flex justify-between px-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                    <span className="w-full text-center">JAN</span><span className="w-full text-center">FEV</span><span className="w-full text-center">MAR</span><span className="w-full text-center">ABR</span><span className="w-full text-center">MAI</span><span className="w-full text-center">JUN</span>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center relative">
+                  <div className="w-full flex justify-between absolute top-6 px-6">
+                    <h3 className="font-bold text-slate-800 text-sm">Impacto Social</h3>
+                    <h3 className="text-xs text-slate-500 font-medium">Foco por Área Temática</h3>
+                  </div>
+                  {/* Mock Donut */}
+                  <div className="relative w-40 h-40 mt-6 rounded-full border-[16px] border-slate-100 flex items-center justify-center">
+                    <div className="absolute inset-0 rounded-full border-[16px] border-red-600 border-t-transparent border-r-transparent transform -rotate-45"></div>
+                    <div className="absolute inset-0 rounded-full border-[16px] border-blue-600 border-b-transparent border-l-transparent transform rotate-12"></div>
+                    <div className="text-center">
+                       <div className="text-lg font-extrabold text-slate-800">R$ 25.5M</div>
+                       <div className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">TOTAL</div>
+                    </div>
+                  </div>
+                  <div className="w-full mt-10 space-y-3">
+                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-600"></div> Saúde</span> <span className="font-bold text-slate-800">59%</span></div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-600"></div> Educação</span> <span className="font-bold text-slate-800">29%</span></div>
+                    <div className="flex justify-between text-xs font-semibold text-slate-600"><span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-slate-300"></div> Infraestrutura</span> <span className="font-bold text-slate-800">12%</span></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-slate-200 flex justify-between items-center">
                   <div>
-                    <h3 className="font-bold text-xs uppercase text-red-750">Alerta de Prazos Críticos Licitações</h3>
-                    <p className="text-xs text-red-700 mt-0.5">
-                      Você possui editais com propostas se encerrando hoje! Revise prazos de habilitação e atestados.
-                    </p>
+                    <h3 className="font-bold text-slate-800 text-lg">Relação de Emendas Parlamentares</h3>
+                    <p className="text-xs text-slate-500 font-medium">Listagem filtrada com base nas seleções do painel</p>
+                  </div>
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" placeholder="Buscar por objeto, beneficiário..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-red-500 focus:outline-none w-72" />
                   </div>
                 </div>
-                <button
-                  onClick={() => setActiveTab('agenda')}
-                  className="bg-red-650 hover:bg-red-700 text-white px-3.5 py-1.5 rounded text-xs font-bold transition shrink-0"
-                >
-                  Visualizar Linha do Tempo
-                </button>
-              </div>
-
-              {/* Title Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <Building className="w-5 h-5 text-slate-500" />
-                    Visão Geral de Licitações - {currentCompany?.nome}
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Acompanhamento de funil e prazos do acervo técnico da chave empresarial <span className="font-bold text-slate-700">{activeCompanyKey}</span>.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsAddingBid(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-bold flex items-center gap-1.5 transition shrink-0 shadow-sm"
-                  style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
-                >
-                  <Plus className="w-4 h-4" /> Novo Edital
-                </button>
-              </div>
-
-              {/* KPIs indicators array */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                
-                {/* Metric Card 1 */}
-                <div className="bg-white px-4 py-4 rounded border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wide">Editais Ativos</span>
-                    <span className="p-1 bg-slate-100 text-[#0F172A] rounded"><Briefcase className="w-3.5 h-3.5" /></span>
-                  </div>
-                  <div className="mt-2.5 flex items-baseline gap-1.5">
-                    <span className="text-2xl font-bold tracking-tight text-slate-900">{companyBids.length}</span>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">itens</span>
-                  </div>
-                  <div className="mt-1 text-[10px] text-green-600 flex items-center gap-1 font-bold uppercase">
-                    <TrendingUp className="w-3 h-3" />
-                    <span>+12% vs mês anterior</span>
-                  </div>
-                </div>
-
-                {/* Metric Card 2 */}
-                <div className="bg-white px-4 py-4 rounded border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between font-sans">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wide">Taxa de Sucesso</span>
-                    <span className="p-1 bg-red-50 text-red-600 rounded"><Award className="w-3.5 h-3.5" /></span>
-                  </div>
-                  <div className="mt-2.5">
-                    <span className="text-2xl font-bold tracking-tight text-slate-900">38%</span>
-                    {/* Visual Progress gauge bar */}
-                    <div className="w-full bg-slate-100 h-1.5 rounded mt-2 overflow-hidden">
-                      <div className="bg-red-650 h-full" style={{ width: '38%' }}></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Metric Card 3 */}
-                <div className="bg-white px-4 py-4 rounded border border-slate-200 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wide">Volume Financeiro Estimado</span>
-                    <span className="p-1 bg-green-50 text-green-700 rounded"><Sliders className="w-3.5 h-3.5" /></span>
-                  </div>
-                  <div className="mt-2.5 flex items-baseline gap-1">
-                    <span className="text-xl font-bold tracking-tight text-slate-900">
-                      R$ {companyBids.reduce((acc, el) => acc + el.valor_estimado, 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[10px] text-slate-405 italic">Geração de receita potencial em licitações ativas.</p>
-                </div>
-              </div>
-
-              {/* Bento Grid layout with Funnel and Tenders */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                
-                {/* CSS Opportunity Funnel representation (Requirement 4.a) */}
-                <div className="lg:col-span-5 bg-white p-5 rounded border border-slate-200 shadow-sm flex flex-col">
-                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3 pb-1 border-b border-slate-100">Funil de Oportunidades</h3>
-                  <div className="flex-1 flex flex-col gap-2 justify-center">
-                    
-                    <div className="relative p-2 bg-slate-50 hover:bg-slate-105 rounded text-xs flex justify-between items-center transition border border-slate-200">
-                      <span className="font-semibold text-slate-600">Captação / Scanner</span>
-                      <span className="font-mono bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-bold text-[10px]">120</span>
-                    </div>
-
-                    <div className="relative p-2 bg-indigo-50/60 hover:bg-indigo-50 rounded text-xs flex justify-between items-center transition border border-indigo-150 w-[95%] mx-auto">
-                      <span className="font-semibold text-indigo-700">Em Análise Técnica</span>
-                      <span className="font-mono bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        {companyBids.filter(b => b.status === "Em Análise").length}
-                      </span>
-                    </div>
-
-                    <div className="relative p-2 bg-amber-50/60 hover:bg-amber-50 rounded text-xs flex justify-between items-center transition border border-amber-200 w-[90%] mx-auto">
-                      <span className="font-semibold text-amber-700">Em Preparação</span>
-                      <span className="font-mono bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        {companyBids.filter(b => b.status === "Em Preparação").length}
-                      </span>
-                    </div>
-
-                    <div className="relative p-2 bg-red-50 hover:bg-red-100 rounded text-xs flex justify-between items-center transition border border-red-200 w-[85%] mx-auto">
-                      <span className="font-semibold text-red-700">Propostas Submetidas</span>
-                      <span className="font-mono bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        {companyBids.filter(b => b.status === "Submetido").length}
-                      </span>
-                    </div>
-
-                    <div className="relative p-2 bg-green-50 hover:bg-green-105 rounded text-xs flex justify-between items-center transition border border-green-200 w-[80%] mx-auto">
-                      <span className="font-semibold text-green-700">Vencidas / Ganhos</span>
-                      <span className="font-mono bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-bold text-[10px]">
-                        {companyBids.filter(b => b.status === "Ganho").length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Editais Recentes Table List */}
-                <div className="lg:col-span-7 bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-50/60">
-                    <h3 className="font-bold text-slate-800 text-xs uppercase tracking-tight">Controle de Editais ({activeCompanyKey})</h3>
-                    <button
-                      onClick={() => setActiveTab('agenda')}
-                      className="text-xs text-red-650 hover:underline flex items-center gap-1 font-semibold"
-                    >
-                      Ver Agenda Completa
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100 text-slate-500 uppercase text-[9px] font-bold border-b border-slate-200">
-                          <th className="px-4 py-2 font-semibold">Órgão / Licitação</th>
-                          <th className="px-4 py-2 font-semibold">Objeto</th>
-                          <th className="px-4 py-2 font-semibold">Valor Estimado</th>
-                          <th className="px-4 py-2 font-semibold text-center">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {companyBids.length === 0 ? (
-                          <tr>
-                            <td colSpan={4} className="p-8 text-center text-slate-400 text-xs">
-                              <ArchiveIconPlaceholder className="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-400" />
-                              Nenhuma licitação cadastrada para esta empresa. 
-                              <button onClick={() => setIsAddingBid(true)} className="text-red-600 block mx-auto underline mt-1 font-bold">
-                                Adicionar Manualmente
-                              </button>
-                            </td>
-                          </tr>
-                        ) : (
-                          companyBids.map(bid => (
-                            <tr key={bid.id} className="border-b border-slate-200 hover:bg-slate-50 transition">
-                              <td className="px-4 py-2 text-xs">
-                                <p className="font-bold text-slate-800 leading-snug">{bid.orgao}</p>
-                                <p className="text-[9px] text-slate-400 uppercase font-bold tracking-tight">{bid.modalidade}</p>
-                              </td>
-                              <td className="px-4 py-2 text-slate-500 max-w-[180px] truncate text-[11px]" title={bid.objeto}>
-                                {bid.objeto}
-                              </td>
-                              <td className="px-4 py-2 font-bold text-slate-705 text-xs">
-                                R$ {bid.valor_estimado.toLocaleString('pt-BR')}
-                              </td>
-                              <td className="px-4 py-2 text-center">
-                                <div className="flex gap-1.5 justify-center items-center">
-                                  <button
-                                    onClick={() => handleAnalyzeAptitude(bid)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] flex items-center gap-1 transition"
-                                    style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
-                                    title="Análise Inteligente de Capacidade Técnica por IA"
-                                  >
-                                    <Sparkles className="w-3 h-3 text-amber-305" /> Analisar
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingBid(bid)}
-                                    className="text-slate-400 hover:text-blue-500 p-1"
-                                    title="Editar Licitação"
-                                  >
-                                    <Edit className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteBid(bid.id)}
-                                    className="text-slate-400 hover:text-red-500 p-1"
-                                    title="Excluir Licitação"
-                                  >
-                                    <Trash className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {/* AGENDA TAB SCREEN (REQUIREMENT 4.b) */}
-          {activeTab === 'agenda' && (
-            <motion.div
-              initial={{ opacity: 0, x: -15 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-5"
-            >
-              <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-red-650" />
-                    Agenda de Prazos Expandida
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Navegue pelas datas críticas e controle exigências de documentação integradas.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setActiveTab('dashboard');
-                    setIsAddingBid(true);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1.5 transition whitespace-nowrap"
-                  style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
-                >
-                  <Plus className="w-4 h-4" /> Novo Prazo
-                </button>
-              </div>
-
-              {/* Grid with Left Mini-Calendar Selector & Right Timeline list */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                
-                {/* Left side Mini-Calendar widget */}
-                <div className="md:col-span-4 bg-white p-4 rounded border border-slate-200 shadow-sm">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-bold text-sm text-slate-800">{calendarMonth}</span>
-                    <div className="flex gap-1">
-                      <button className="p-1 rounded hover:bg-slate-100 text-slate-500"><ChevronLeft className="w-4 h-4" /></button>
-                      <button className="p-1 rounded hover:bg-slate-100 text-slate-500"><ChevronRight className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-
-                  {/* Calendar Matrix Days Headers */}
-                  <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-2">
-                    <span>D</span><span>S</span><span>T</span><span>Q</span><span>Q</span><span>S</span><span>S</span>
-                  </div>
-
-                  {/* Calendar simulated days block */}
-                  <div className="grid grid-cols-7 gap-1 text-[11.5px] font-medium text-slate-700">
-                    <span className="p-2 text-slate-300 text-center">31</span>
-                    <span className="p-2 text-slate-300 text-center">1</span>
-                    <span className="p-2 text-slate-300 text-center">2</span>
-                    
-                    {/* Active highlighted selected day with a glowing ring indicator */}
-                    <button
-                      onClick={() => setSelectedDateStr('2026-06-03')}
-                      className={`p-2 rounded text-center relative font-bold ${selectedDateStr === '2026-06-03' ? 'bg-red-600 text-white shadow-md' : 'hover:bg-slate-100'}`}
-                    >
-                      3
-                      <span className={`absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1.5 h-1.5 rounded-full ${selectedDateStr === '2026-06-03' ? 'bg-white' : 'bg-red-600 animate-ping'}`}></span>
-                    </button>
-
-                    {[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].map(day => {
-                      const dayStr = `2026-06-${day.toString().padStart(2, '0')}`;
-                      const hasBid = licitacoes.some(b => b.prazo_proposta.startsWith(dayStr));
-
-                      return (
-                        <button
-                          key={day}
-                          onClick={() => setSelectedDateStr(dayStr)}
-                          className={`p-2 rounded text-center relative ${selectedDateStr === dayStr ? 'bg-slate-800 text-white' : 'hover:bg-slate-100'}`}
-                        >
-                          {day}
-                          {hasBid && (
-                            <span className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600"></span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Legends */}
-                  <div className="mt-6 pt-4 border-t border-slate-150 space-y-2 text-[11px] text-slate-500">
-                    <p className="font-bold text-slate-400 uppercase text-[10px] tracking-wider mb-2">Legendas</p>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 bg-red-600 rounded-full"></span>
-                      <span>Prazo Crítico (&lt; 48 Horas)</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 bg-indigo-600 rounded-full"></span>
-                      <span>Abertura de Sessão Pública</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 bg-slate-400 rounded-full"></span>
-                      <span>Documentação Regular</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right side Detailed Timeline with Closures Checklist */}
-                <div className="md:col-span-8 space-y-4">
-                  <div className="bg-white p-4 rounded border border-slate-200 shadow-sm flex justify-between items-center bg-slate-50/60">
-                    <div>
-                      <h3 className="font-bold text-xs text-slate-850 uppercase tracking-tight">
-                        Prazos para {new Date(selectedDateStr + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      </h3>
-                      <p className="text-[11px] text-slate-400 mt-0.5 font-sans">Filtrando agendamentos relativos ao contexto selecionado.</p>
-                    </div>
-                  </div>
-
-                  {/* List timeline events filtered */}
-                  {companyBids.filter(b => b.prazo_proposta.startsWith(selectedDateStr) || b.prazo_abertura.startsWith(selectedDateStr)).length === 0 ? (
-                    <div className="p-10 text-center bg-white rounded border border-slate-200 shadow-sm">
-                      <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-550 text-xs font-semibold">Sem prazos críticos agendados para este dia.</p>
-                      <p className="text-slate-400 text-[10px] mt-1 italic">Dica: Selecione o dia 3 ou os dias de novos editais cadastrados!</p>
-                    </div>
-                  ) : (
-                    companyBids.filter(b => b.prazo_proposta.startsWith(selectedDateStr) || b.prazo_abertura.startsWith(selectedDateStr)).map(bid => {
-                      // Detect if < 48h (simulate based on seed date matching selected or active date)
-                      const isUrgent = true; 
-
-                      return (
-                        <div
-                          key={bid.id}
-                          className={`bg-white p-5 rounded border border-slate-200 border-l-4 transition flex flex-col md:flex-row gap-4 shadow-sm ${isUrgent ? 'border-l-red-650' : 'border-l-indigo-600'}`}
-                        >
-                          <div className="md:w-24 shrink-0">
-                            <span className="text-lg font-extrabold text-slate-900 block leading-none">
-                              {bid.prazo_proposta.split(' ')[1]}
-                            </span>
-                            {isUrgent && (
-                              <span className="inline-block mt-2 px-1.5 py-0.5 bg-red-50 text-red-750 text-[9px] font-bold rounded border border-red-105 uppercase tracking-tighter">
-                                Crítico (&lt;48h)
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex-1 space-y-2.5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3 text-red-650" /> Entrega de Proposta
-                              </span>
-                              <span className="bg-slate-100 border border-slate-205 px-2 py-0.5 rounded text-[10px] text-slate-600 font-mono">
-                                {bid.modalidade}
-                              </span>
-                            </div>
-
-                            <h4 className="font-bold text-sm text-slate-900 tracking-tight leading-snug">
-                              {bid.orgao} <span className="text-slate-300">•</span> {bid.objeto}
-                            </h4>
-
-                            <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100 text-[11px]">
-                              <div>
-                                <p className="text-[10px] text-slate-400 uppercase font-bold">Abertura Sessão Lances:</p>
-                                <p className="font-bold text-slate-700 mt-0.5">{bid.prazo_abertura}</p>
-                              </div>
-                              <div>
-                                <p className="text-[10px] text-slate-400 uppercase font-bold">Valor Estimado Máximo:</p>
-                                <p className="font-bold text-red-655 mt-0.5 font-mono">R$ {bid.valor_estimado.toLocaleString('pt-BR')}</p>
-                              </div>
-                            </div>
-
-                            {/* Internal checklist component inside Timeline card */}
-                            {bid.checklist_itens.length > 0 && (
-                              <div className="mt-3 p-3 bg-slate-50 rounded border border-slate-205">
-                                <h5 className="text-[9.5px] font-bold text-slate-505 uppercase mb-2 tracking-tight">Checklist de Documentos Requeridos:</h5>
-                                <div className="flex flex-wrap gap-3">
-                                  {bid.checklist_itens.map(c => (
-                                    <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs select-none">
-                                      <input
-                                        type="checkbox"
-                                        checked={c.checked}
-                                        onChange={() => handleToggleChecklistItem(bid.id, c.id)}
-                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                      />
-                                      <span className={c.checked ? 'line-through text-slate-400 font-semibold text-[11px]' : 'text-slate-707 font-semibold text-[11px]'}>
-                                        {c.label}
-                                      </span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                      <tr>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">DATA</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">OBJETO / BENEFICIÁRIO</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">MUNICÍPIO</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">TIPO / CATEGORIA</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">PROJETO VINCULADO</th>
+                        <th className="px-6 py-4 font-bold border-b border-slate-200">VALOR</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      <tr className="hover:bg-slate-50">
+                        <td className="px-6 py-4 text-xs font-mono text-slate-500">27/05/2026</td>
+                        <td className="px-6 py-4"><p className="font-bold text-slate-800">CONSTRUÇÃO DE ESCOLAS PÚBLICAS</p><p className="text-xs text-slate-500">Beneficiário: SEDUC</p></td>
+                        <td className="px-6 py-4 font-medium text-slate-800">Campo Mourão - PR</td>
+                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">INDIVIDUAIS (RP 6)</span><span className="text-[10px] text-slate-400 font-semibold">Sem vínculo</span></td>
+                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">R$ 5.800.000,00</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="px-6 py-4 text-xs font-mono text-slate-500">22/04/2026</td>
+                        <td className="px-6 py-4"><p className="font-bold text-slate-800">COSTRÇÃO DE UMA SUBESTAÇÃO DE ENERGIA</p><p className="text-xs text-slate-500">Beneficiário: ESCOLA ESTADUAL</p></td>
+                        <td className="px-6 py-4 font-medium text-slate-800">São José dos Pinhais - PR</td>
+                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">DE RELATOR (RP 9)</span><span className="text-[10px] text-red-500 font-semibold">Infraestrutura</span></td>
+                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">R$ 3.000.000,00</td>
+                      </tr>
+                      <tr className="hover:bg-slate-50">
+                        <td className="px-6 py-4 text-xs font-mono text-slate-500">12/04/2026</td>
+                        <td className="px-6 py-4"><p className="font-bold text-slate-800">Construção de Posto de Saúde no Bairro Conceição</p><p className="text-xs text-slate-500">Beneficiário: Prefeitura Municipal</p></td>
+                        <td className="px-6 py-4 font-medium text-slate-800">Curitiba - PR</td>
+                        <td className="px-6 py-4"><span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200 block w-max mb-1">INDIVIDUAIS (RP 6)</span><span className="text-[10px] text-red-500 font-semibold">Saúde</span></td>
+                        <td className="px-6 py-4 text-xs text-slate-400 italic">Sem vínculo</td>
+                        <td className="px-6 py-4 font-bold text-slate-800">R$ 15.000.000,00</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* SCANNER TAB SCREEN (REQUIREMENT 4.c / 4.d Cert Reader) */}
-          {activeTab === 'scanner' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-5"
-            >
-              <div className="border-b border-slate-200 pb-4">
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                  Scanner de Editais & Atestados com IA
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Carregue documentos em PDF ou texto e utilize a inteligência avançada para extrair estruturadamente todas as exigências.
-                </p>
-              </div>
-
-              {/* Upload area */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 font-sans">
-                
-                {/* Drag zone / input text block creator */}
-                <div className="lg:col-span-7 space-y-4">
-                  
-                  <div className="bg-white p-4 rounded border border-slate-200 space-y-4 shadow-sm">
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      Texto bruto ou extraído do PDF / Edital / Atestado:
-                    </label>
-
-                    <textarea
-                      value={rawScannerText}
-                      onChange={(e) => {
-                        setRawScannerText(e.target.value);
-                        setUploadedFileName("Texto_Copiado_Edital.pdf");
-                      }}
-                      className="w-full h-44 p-3 bg-slate-50 border border-slate-200 rounded text-xs leading-relaxed focus:outline-none focus:border-blue-500 font-mono"
-                      placeholder="Cole aqui as seções do edital referente ao Objeto, Prazos de Proposta, Documentos de Habilitação Física e Exigência de acervo e atestados técnicos..."
-                    />
-
-                    {/* Pre-written templates selector for visual satisfaction */}
-                    <div>
-                      <p className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 mb-2">Simule em 1-Clique com modelos de demonstração:</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {EDITADO_TEXTS.map((t, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleTriggerTenderScanner(idx)}
-                            className="text-[10px] bg-slate-50 hover:bg-slate-100 text-slate-700 px-2 py-1 rounded transition font-bold border border-slate-200 shadow-xs"
-                          >
-                            {idx === 2 ? "💡 ACT: " : "📋 "} {t.title.split(' - ')[0]}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Submit parsing */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="text-slate-400 text-xs">
-                        {uploadedFileName && (
-                          <span className="flex items-center gap-1 font-semibold text-slate-600 font-mono text-[10px]">
-                            📄 {uploadedFileName}
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleTriggerTenderScanner(null)}
-                        disabled={scannerIsProcessing}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded transition disabled:bg-slate-350 flex items-center gap-2 shadow-sm"
-                        style={{ backgroundColor: primaryColor === '#0F172A' || primaryColor === '#091426' ? '#2563EB' : primaryColor }}
-                      >
-                        {scannerIsProcessing ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Processando IA...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="w-3.5 h-3.5 text-amber-305" /> Analisar Documento (Gemini)
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Organização em grade das últimas processadas (Exigência 4.c) */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100">
-                    <h3 className="font-bold text-slate-800 text-sm mb-3">Grade de Documentos Processados</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {lastScannedTenders.slice(0, 4).map((item) => (
-                        <div key={item.id} className="p-3 bg-slate-50 rounded border border-slate-200 text-xs space-y-1.5">
-                          <div className="flex justify-between items-center">
-                            <span className="font-semibold text-slate-800 truncate block max-w-[125px]">{item.fileName}</span>
-                            <span className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded font-bold">Concluído</span>
-                          </div>
-                          <p className="text-[10.5px] text-slate-500 line-clamp-2">{item.objeto}</p>
-                          <div className="text-[9.5px] text-slate-400 flex justify-between pt-1">
-                            <span>Estimado: R$ {item.valorEstimado?.toLocaleString('pt-BR')}</span>
-                            <span>{item.timestamp.split(' ')[0]}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Scanned Results display panel */}
-                <div className="lg:col-span-5 space-y-4 font-sans">
-                  {scannerIsProcessing && (
-                    <div className="bg-slate-900 text-white p-6 rounded border border-slate-950 text-center space-y-3.5 animate-pulse shadow-sm">
-                      <Sparkles className="w-8 h-8 text-amber-400 animate-bounce mx-auto" />
-                      <h4 className="font-bold text-xs uppercase tracking-wider text-slate-205">Gemini está estruturando o documento...</h4>
-                      <p className="text-slate-400 text-[11px] leading-relaxed">
-                        Extraindo objeto licitado, valor, prazos limites de habilitação e atestados. Comentários legislativos inclusos.
-                      </p>
-                    </div>
-                  )}
-
-                  {scannerError && (
-                    <div className="bg-red-50 border border-red-200 p-3 rounded text-red-750 text-xs flex gap-2">
-                      <AlertTriangle className="w-4 h-4 shrink-0 text-red-601" />
-                      <span>{scannerError}</span>
-                    </div>
-                  )}
-
-                  {/* Scanned success parsed structured form view */}
-                  {scannerResult && (
-                    <div className="bg-white p-4 rounded border border-slate-200 border-l-4 border-l-blue-600 shadow-sm space-y-3.5 animate-fade-in">
-                      <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-1.5 text-slate-800">
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                          <h3 className="font-bold text-xs uppercase tracking-tight text-slate-850">
-                            {scannerResult.isCertificate ? "Atestado Importado" : "Edital Estruturado"}
-                          </h3>
-                        </div>
-                        {scannerResult.isCertificate && (
-                          <span className="text-[9.5px] bg-indigo-50 border border-indigo-120 text-indigo-750 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Atestado</span>
-                        )}
-                      </div>
-
-                      {scannerResult.isCertificate ? (
-                        <div className="space-y-3 text-xs text-slate-700">
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Atestado:</p>
-                            <p className="font-bold text-slate-800">{scannerResult.nome_atestado}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Órgão Emissor:</p>
-                            <p className="font-semibold">{scannerResult.orgao_emissor}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Data de Emissão:</p>
-                            <p className="font-semibold">{scannerResult.data_emissao}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Itens Identificados e Salvados (CRUD):</p>
-                            <ul className="mt-1.5 space-y-1.5 bg-slate-50 p-2.5 rounded font-mono text-[10.5px]">
-                              {scannerResult.itens?.map((it: any, i: number) => (
-                                <li key={i} className="border-b border-slate-200/55 pb-1 last:border-0">
-                                  #{it.item_numero}: {it.descricao} - <b>{it.quantidade} {it.unidade}</b> ({it.relevancia_tecnica})
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3.5 text-xs text-slate-700">
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Modalidade:</p>
-                            <p className="font-bold text-slate-800">{scannerResult.modalidade}</p>
-                          </div>
-                          
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Órgão Licitador:</p>
-                            <p className="font-semibold text-slate-800">{scannerResult.orgao}</p>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Objeto:</p>
-                            <p className="leading-relaxed bg-slate-50 p-2 rounded text-slate-600">{scannerResult.objeto}</p>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Valor Estimado:</p>
-                              <p className="font-bold text-red-650">R$ {scannerResult.valor_estimado?.toLocaleString('pt-BR') || "0,00"}</p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">Encerramento Proposta:</p>
-                              <p className="font-bold text-slate-800">{scannerResult.prazo_proposta}</p>
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Documentos Obrigatórios:</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {scannerResult.documentos_obrigatorios?.map((doc: string, dIdx: number) => (
-                                <span key={dIdx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-medium">
-                                  {doc}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">Exigência de Qualificação de Atestados:</p>
-                            <p className="bg-slate-50 p-2.5 rounded border border-slate-150 text-[10.5px] leading-relaxed italic text-slate-600">
-                              {scannerResult.exigencias_atestados || "Atestados genéricos normais"}
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={applyImportedScannerToBids}
-                            className="w-full bg-slate-900 text-white font-bold text-xs py-2.5 rounded-lg hover:bg-slate-800 transition"
-                          >
-                            Importar Edital no CRM de Licitações
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {!scannerResult && !scannerIsProcessing && (
-                    <div className="bg-white p-6 rounded-xl border border-slate-100 text-center space-y-4 shadow-sm">
-                      <Sparkles className="w-10 h-10 text-amber-500 mx-auto" />
-                      <h4 className="font-bold text-slate-800 text-sm">Visualizador Estruturado de Inteligência</h4>
-                      <p className="text-slate-400 text-xs">
-                        Cole ou selecione um edital na esquerda para ver todas as informações mapeadas em campos específicos de forma organizada.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* ATESTADOS & COMPATIBILITY TAB SCREEN (REQUIREMENT 4.d CRUD Atestados) */}
-          {activeTab === 'atestados' && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-5"
-            >
-              {isAddingCert ? (
-                /* --- ADD CERTIFICATE OVERLAY --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs animate-fade-in">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-850 text-sm">Cadastrar Novo Atestado Técnico</h3>
-                      <p className="text-[11px] text-slate-400 font-medium">Cadastre a comprovação de acervo técnico com seus itens discriminados</p>
-                    </div>
-                    <button onClick={() => setIsAddingCert(false)} className="text-slate-400 hover:text-slate-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Nome do Atestado / Objeto:</label>
-                      <input
-                        type="text"
-                        value={newCertName}
-                        onChange={(e) => setNewCertName(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold text-slate-800"
-                        placeholder="EX: Atestado de execução de serviços de engenharia de redes"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Data de Emissão:</label>
-                      <input
-                        type="date"
-                        value={newCertData}
-                        onChange={(e) => setNewCertData(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none font-semibold text-slate-800"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Órgão ou Empresa Emissora:</label>
-                      <input
-                        type="text"
-                        value={newCertEmissor}
-                        onChange={(e) => setNewCertEmissor(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
-                        placeholder="EX: Petrobras S.A. / Secretaria de Educação"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Observações Adicionais:</label>
-                      <input
-                        type="text"
-                        value={newCertObs}
-                        onChange={(e) => setNewCertObs(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
-                        placeholder="EX: Registrado no CREA sob nº 1234/205"
-                      />
-                    </div>
-                  </div>
-
-                  {/* ITENS TABLE EDITING */}
-                  <div className="border border-slate-200 rounded-lg overflow-hidden mt-2">
-                    <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
-                      <span className="font-bold text-slate-700 text-xs uppercase tracking-tight">Itens de Acervo Técnico (Linhas de Capacidade)</span>
-                      <button
-                        onClick={() => {
-                          const nextNum = newCertItems.length + 1;
-                          setNewCertItems([
-                            ...newCertItems,
-                            { item_numero: nextNum, descricao: '', quantidade: 1, unidade: 'un', relevancia_tecnica: 'Média' }
-                          ]);
-                        }}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-850 px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 border border-indigo-200"
-                      >
-                        <Plus className="w-3 h-3" /> Adicionar Item
-                      </button>
-                    </div>
-
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100/60 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px]">
-                          <th className="px-3 py-1.5 w-12 text-center">Nº</th>
-                          <th className="px-3 py-1.5">Descrição Técnica do Serviço Prestado</th>
-                          <th className="px-3 py-1.5 w-24">Qtd.</th>
-                          <th className="px-3 py-1.5 w-20">Unidade</th>
-                          <th className="px-3 py-1.5 w-28">Relevância</th>
-                          <th className="px-3 py-1.5 w-16 text-center">Remover</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {newCertItems.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-4 text-center text-slate-400 font-medium">Adicione ao menos um item de comprovação técnica para salvar.</td>
-                          </tr>
-                        ) : (
-                          newCertItems.map((it, index) => (
-                            <tr key={index} className="border-b last:border-0 hover:bg-slate-50/50">
-                              <td className="px-3 py-2 text-center text-slate-500 font-mono font-bold">#{it.item_numero}</td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="text"
-                                  value={it.descricao}
-                                  onChange={(e) => {
-                                    const updated = [...newCertItems];
-                                    updated[index].descricao = e.target.value;
-                                    setNewCertItems(updated);
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded font-semibold text-slate-800"
-                                  placeholder="EX: Instalação e conectorização de fibra óptica multimodo"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  value={it.quantidade}
-                                  onChange={(e) => {
-                                    const updated = [...newCertItems];
-                                    updated[index].quantidade = Number(e.target.value);
-                                    setNewCertItems(updated);
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded font-bold font-mono text-center"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="text"
-                                  value={it.unidade}
-                                  onChange={(e) => {
-                                    const updated = [...newCertItems];
-                                    updated[index].unidade = e.target.value;
-                                    setNewCertItems(updated);
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded uppercase font-mono font-bold text-center text-slate-600"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <select
-                                  value={it.relevancia_tecnica}
-                                  onChange={(e) => {
-                                    const updated = [...newCertItems];
-                                    updated[index].relevancia_tecnica = e.target.value as any;
-                                    setNewCertItems(updated);
-                                  }}
-                                  className="w-full px-1.5 py-1 border border-slate-200 rounded bg-white font-bold"
-                                >
-                                  <option value="Alta">Alta</option>
-                                  <option value="Média">Média</option>
-                                  <option value="Baixa">Baixa</option>
-                                </select>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => setNewCertItems(newCertItems.filter((_, i) => i !== index))}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-full transition"
-                                >
-                                  <Trash className="w-4 h-4 mx-auto" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => setIsAddingCert(false)}
-                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSaveCertificate}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Salvar Atestado
-                    </button>
-                  </div>
-                </div>
-              ) : editingCert ? (
-                /* --- EDIT CERTIFICATE OVERLAY --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs animate-fade-in">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-850 text-sm">Editar Atestado Técnico</h3>
-                      <p className="text-[11px] text-slate-400 font-medium">Atualize as informações discriminadas deste certificado</p>
-                    </div>
-                    <button onClick={() => setEditingCert(null)} className="text-slate-400 hover:text-slate-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Nome do Atestado / Objeto:</label>
-                      <input
-                        type="text"
-                        value={editingCert.nome_atestado}
-                        onChange={(e) => setEditingCert({ ...editingCert, nome_atestado: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-bold text-slate-800"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Data de Emissão:</label>
-                      <input
-                        type="date"
-                        value={editingCert.data_emissao}
-                        onChange={(e) => setEditingCert({ ...editingCert, data_emissao: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none font-semibold text-slate-800"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Órgão ou Empresa Emissora:</label>
-                      <input
-                        type="text"
-                        value={editingCert.orgao_emissor}
-                        onChange={(e) => setEditingCert({ ...editingCert, orgao_emissor: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none font-semibold text-slate-800"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Observações:</label>
-                      <input
-                        type="text"
-                        value={editingCert.observacoes || ''}
-                        onChange={(e) => setEditingCert({ ...editingCert, observacoes: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* ITENS TABLE EDITING */}
-                  <div className="border border-slate-200 rounded-lg overflow-hidden mt-2">
-                    <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
-                      <span className="font-bold text-slate-700 text-xs uppercase tracking-tight">Itens de Acervo Técnico (Linhas de Capacidade)</span>
-                      <button
-                        onClick={() => {
-                          const nextNum = editingCert.itens.length + 1;
-                          const updated = [
-                            ...editingCert.itens,
-                            { item_numero: nextNum, descricao: '', quantidade: 1, unidade: 'un', relevancia_tecnica: 'Média' as const }
-                          ];
-                          setEditingCert({ ...editingCert, itens: updated });
-                        }}
-                        className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-850 px-2.5 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 border border-indigo-200"
-                      >
-                        <Plus className="w-3 h-3" /> Adicionar Item
-                      </button>
-                    </div>
-
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-100/60 border-b border-slate-200 text-slate-500 font-bold uppercase text-[9px]">
-                          <th className="px-3 py-1.5 w-12 text-center">Nº</th>
-                          <th className="px-3 py-1.5">Descrição Técnica do Serviço Prestado</th>
-                          <th className="px-3 py-1.5 w-24">Qtd.</th>
-                          <th className="px-3 py-1.5 w-20">Unidade</th>
-                          <th className="px-3 py-1.5 w-28">Relevância</th>
-                          <th className="px-3 py-1.5 w-16 text-center">Remover</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {editingCert.itens.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-4 text-center text-slate-400 font-medium">Adicione ao menos um item de comprovação técnica para salvar.</td>
-                          </tr>
-                        ) : (
-                          editingCert.itens.map((it, index) => (
-                            <tr key={index} className="border-b last:border-0 hover:bg-slate-50/50">
-                              <td className="px-3 py-2 text-center text-slate-500 font-mono font-bold">#{it.item_numero}</td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="text"
-                                  value={it.descricao}
-                                  onChange={(e) => {
-                                    const updated = [...editingCert.itens];
-                                    updated[index].descricao = e.target.value;
-                                    setEditingCert({ ...editingCert, itens: updated });
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded font-semibold text-slate-800"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="number"
-                                  value={it.quantidade}
-                                  onChange={(e) => {
-                                    const updated = [...editingCert.itens];
-                                    updated[index].quantidade = Number(e.target.value);
-                                    setEditingCert({ ...editingCert, itens: updated });
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded font-bold font-mono text-center"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <input
-                                  type="text"
-                                  value={it.unidade}
-                                  onChange={(e) => {
-                                    const updated = [...editingCert.itens];
-                                    updated[index].unidade = e.target.value;
-                                    setEditingCert({ ...editingCert, itens: updated });
-                                  }}
-                                  className="w-full px-2 py-1 border border-slate-200 rounded uppercase font-mono font-bold text-center text-slate-605"
-                                />
-                              </td>
-                              <td className="px-3 py-2">
-                                <select
-                                  value={it.relevancia_tecnica}
-                                  onChange={(e) => {
-                                    const updated = [...editingCert.itens];
-                                    updated[index].relevancia_tecnica = e.target.value as any;
-                                    setEditingCert({ ...editingCert, itens: updated });
-                                  }}
-                                  className="w-full px-1.5 py-1 border border-slate-200 rounded bg-white font-bold"
-                                >
-                                  <option value="Alta">Alta</option>
-                                  <option value="Média">Média</option>
-                                  <option value="Baixa">Baixa</option>
-                                </select>
-                              </td>
-                              <td className="px-3 py-2 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const updated = editingCert.itens.filter((_, i) => i !== index);
-                                    setEditingCert({ ...editingCert, itens: updated });
-                                  }}
-                                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded-full transition"
-                                >
-                                  <Trash className="w-4 h-4 mx-auto" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => setEditingCert(null)}
-                      className="bg-slate-105 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleSaveEditCert(editingCert)}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Salvar Alterações
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-200 pb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-slate-700" />
-                        Controle de Atestados Técnicos da Empresa
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Cadastre, revise e processe acervos técnicos linha a linha dos atestados da empresa.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setNewCertName('');
-                        setNewCertEmissor('');
-                        setNewCertObs('');
-                        setNewCertData(new Date().toISOString().split('T')[0]);
-                        setNewCertItems([
-                          { item_numero: 1, descricao: 'Fornecimento continuado de material', quantidade: 50, unidade: 'un', relevancia_tecnica: 'Média' }
-                        ]);
-                        setIsAddingCert(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shrink-0 shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Plus className="w-4 h-4" /> Cadastrar Atestado
-                    </button>
-                  </div>
-
-              {/* Advanced Matching Simulator Drawer Indicator */}
-              {comparingBid && (
-                <div className="bg-white p-6 rounded-xl border-l-4 border-amber-500 shadow-lg space-y-4 animate-fade-in">
-                  <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                    <div>
-                      <span className="text-[10px] font-bold text-amber-600 uppercase">Análise Inteligente de Qualificação</span>
-                      <h3 className="font-bold text-slate-800 text-md">
-                        {comparingBid.orgao} - {comparingBid.objeto.substring(0, 100)}...
-                      </h3>
-                    </div>
-                    <button onClick={() => setComparingBid(null)} className="p-1 rounded hover:bg-slate-100">
-                      <X className="w-5 h-5 text-slate-400" />
-                    </button>
-                  </div>
-
-                  {matchLoading ? (
-                    <div className="text-center p-8 space-y-3">
-                      <RefreshCw className="w-8 h-8 text-amber-500 animate-spin mx-auto" />
-                      <p className="text-xs font-semibold text-slate-600">Gemini está comparando {companyCerts.length} atestados contra o Edital...</p>
-                    </div>
-                  ) : matchResult ? (
-                    <div className="space-y-4 text-xs">
-                      <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-lg">
-                        <div className="text-center p-3 bg-white rounded-xl shadow-inner border border-slate-200">
-                          <p className="text-xs text-slate-400 font-bold uppercase">Aderência</p>
-                          <p className="text-4xl font-extrabold text-red-650" style={{ color: primaryColor }}>
-                            {matchResult.score_aderencia}%
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] text-slate-400 uppercase font-mono">Elegibilidade Estimada:</p>
-                          <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold ${matchResult.elegibilidade === 'Altamente Recomendável' ? 'bg-emerald-100 text-emerald-800' : matchResult.elegibilidade === 'Possível com Riscos' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                            {matchResult.elegibilidade}
-                          </span>
-                          <p className="text-[11px] text-slate-500 mt-1">{matchResult.recomendacao_final}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wide">Pontos Fortes Mapeados:</p>
-                          <ul className="space-y-1.5 list-disc pl-4 text-slate-600">
-                            {matchResult.pontos_fortes?.map((p, i) => <li key={i}>{p}</li>)}
-                          </ul>
-                        </div>
-                        <div className="space-y-2">
-                          <p className="font-bold text-slate-800 text-[11px] uppercase tracking-wide text-red-700">Pontos de Atenção / Gaps:</p>
-                          <ul className="space-y-1.5 list-disc pl-4 text-slate-600">
-                            {matchResult.pontos_atencao?.map((p, i) => <li key={i}>{p}</li>)}
-                          </ul>
-                        </div>
-                      </div>
-
-                      <div className="pt-3 border-t border-slate-100">
-                        <p className="font-bold text-slate-800 mb-2">Checklist de Requisitos Mapeados por IA:</p>
-                        <div className="space-y-1.5">
-                          {matchResult.checklist_verificação?.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-150 text-xs text-slate-705">
-                              <span className="font-semibold text-slate-700">{item.item}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono text-[10.5px]" style={{ color: primaryColor }}>{item.detalhe}</span>
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'Atendido' ? 'bg-emerald-100 text-emerald-800' : item.status === 'Parcialmente Atendido' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                                  {item.status}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {/* Technical Inventory List */}
-              <div className="grid grid-cols-1 gap-5">
-                {companyCerts.length === 0 ? (
-                  <div className="p-10 text-center bg-white rounded border border-slate-200 shadow-sm">
-                    <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-500 text-xs font-semibold">Nenhum atestado cadastrado.</p>
-                    <p className="text-slate-400 text-[10px] mt-1">Carregue um acerto técnico na esquerda ou crie um novo!</p>
-                  </div>
-                ) : (
-                  companyCerts.map(cert => (
-                    <div key={cert.id} className="bg-white p-4 rounded border border-slate-200 space-y-3 shadow-none font-sans">
-                      
-                      <div className="flex justify-between items-start border-b border-slate-100 pb-2">
-                        <div>
-                          <span className="text-[9px] font-bold text-indigo-650 uppercase tracking-tight block">Item de Capacidade Técnica</span>
-                          <h3 className="font-bold text-sm text-slate-850 tracking-tight">{cert.nome_atestado}</h3>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            Emitido por <span className="font-semibold text-slate-600">{cert.orgao_emissor}</span> em {new Date(cert.data_emissao + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
-                        <span className="flex items-center gap-2">
-                          <button
-                            onClick={() => setEditingCert(cert)}
-                            className="text-slate-400 hover:text-blue-500 p-1"
-                            title="Editar Atestado"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCert(cert.id)}
-                            className="text-slate-400 hover:text-red-600 p-1"
-                            title="Excluir Atestado"
-                          >
-                            <Trash className="w-4 h-4" />
-                          </button>
-                        </span>
-                      </div>
-
-                      {/* Display lines row-by-row CRUD (Requirement 4.d) */}
-                      <div className="overflow-x-auto bg-slate-50 rounded-lg p-3 border border-slate-150 font-sans">
-                        <table className="w-full text-left text-xs text-slate-700">
-                          <thead>
-                            <tr className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">
-                              <th className="pb-2">Nº Item</th>
-                              <th className="pb-2">Descrição da Atividade Executada</th>
-                              <th className="pb-2">Quantidade</th>
-                              <th className="pb-2">Unidade</th>
-                              <th className="pb-2">Relevância</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cert.itens?.map((it, idx) => (
-                              <tr key={idx} className="border-b border-slate-100 py-2 last:border-0 hover:bg-slate-100 transition">
-                                <td className="py-2.5 font-bold text-slate-500">#{it.item_numero}</td>
-                                <td className="py-2.5 font-semibold text-slate-800">{it.descricao}</td>
-                                <td className="py-2.5 font-bold">{it.quantidade}</td>
-                                <td className="py-2.5 uppercase font-mono text-slate-500">{it.unidade}</td>
-                                <td className="py-2.5">
-                                  <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold uppercase ${it.relevancia_tecnica === 'Alta' ? 'bg-red-100 text-red-700' : it.relevancia_tecnica === 'Média' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
-                                    {it.relevancia_tecnica}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {/* EMPRESAS CRUD SCREEN (REQUIREMENT 3) */}
-          {activeTab === 'empresas' && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-5"
-            >
-              {isAddingCompany ? (
-                /* --- ADD COMPANY OVERLAY FORM --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Cadastrar Nova Empresa</h3>
-                      <p className="text-[11px] text-slate-400">Preencha as informações cadastrais corporativas abaixo</p>
-                    </div>
-                    <button onClick={() => { setIsAddingCompany(false); setNewCompanyName(''); setNewCompanyKey(''); setNewCompanyCnpj(''); }} className="text-slate-400 hover:text-slate-600 transition">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Razão Social / Nome Fantasia:</label>
-                      <input
-                        type="text"
-                        value={newCompanyName}
-                        onChange={(e) => setNewCompanyName(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="EX: Licitacoes Sul do Brasil Ltda"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">CNPJ:</label>
-                      <input
-                        type="text"
-                        value={newCompanyCnpj}
-                        onChange={(e) => setNewCompanyCnpj(e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="EX: 00.000.000/0001-00"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">Chave Unificadora (Sigla):</label>
-                      <input
-                        type="text"
-                        value={newCompanyKey}
-                        onChange={(e) => setNewCompanyKey(e.target.value.toUpperCase())}
-                        className="w-full px-3 py-2 border border-slate-200 rounded uppercase font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="EX: LICSUL"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => { setIsAddingCompany(false); setNewCompanyName(''); setNewCompanyKey(''); setNewCompanyCnpj(''); }}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleAddCompany}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Criar Empresa
-                    </button>
-                  </div>
-                </div>
-              ) : editingCompany ? (
-                /* --- EDIT COMPANY OVERLAY FORM --- */
-                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans">
-                  <div className="flex justify-between items-center border-b pb-3">
-                    <div>
-                      <h3 className="font-bold text-slate-800 text-sm">Editar Cadastro da Empresa</h3>
-                      <p className="text-[11px] text-slate-400">Atualize as informações corporativas registradas no sistema</p>
-                    </div>
-                    <button onClick={() => setEditingCompany(null)} className="text-slate-400 hover:text-slate-600 transition">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div className="md:col-span-2">
-                      <label className="block text-slate-600 font-semibold mb-1">Razão Social / Nome Fantasia:</label>
-                      <input
-                        type="text"
-                        value={editingCompany.nome}
-                        onChange={(e) => setEditingCompany({ ...editingCompany, nome: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-600 font-semibold mb-1">CNPJ:</label>
-                      <input
-                        type="text"
-                        value={editingCompany.cnpj}
-                        onChange={(e) => setEditingCompany({ ...editingCompany, cnpj: e.target.value })}
-                        className="w-full px-3 py-2 border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-400 font-semibold mb-1 cursor-not-allowed">Chave Unificadora (Inalterável):</label>
-                      <input
-                        type="text"
-                        disabled
-                        value={editingCompany.chave_empresa}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded font-mono text-slate-400 cursor-not-allowed"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3 pt-4 border-t">
-                    <button
-                      onClick={() => setEditingCompany(null)}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={() => handleSaveEditCompany(editingCompany)}
-                      className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      Salvar Alterações
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* --- GENERAL COMPANIES LIST TABLE --- */
-                <>
-                  <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-                    <div>
-                      <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                        <Building className="w-5 h-5 text-slate-750" />
-                        Empresas
-                      </h2>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Gerencie os perfis das corporate keys acessíveis na sua rede de licitações.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setIsAddingCompany(true)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                      style={{ backgroundColor: primaryColor }}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Cadastrar Nova Empresa
-                    </button>
-                  </div>
-
-                  <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                          <th className="px-4 py-3 font-semibold w-1/6">Sigla</th>
-                          <th className="px-4 py-3 font-semibold w-2/5">Razão Social / Nome</th>
-                          <th className="px-4 py-3 font-semibold w-1/5">CNPJ</th>
-                          <th className="px-4 py-3 font-semibold text-center w-1/12">Editais</th>
-                          <th className="px-4 py-3 font-semibold text-center w-1/12">Atestados</th>
-                          <th className="px-4 py-3 font-semibold text-center w-1/12">Status</th>
-                          <th className="px-4 py-3 font-semibold text-right w-1/12">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-sm">
-                        {empresas.map(emp => {
-                          const isCurrent = emp.chave_empresa === activeCompanyKey;
-                          const bidsCount = licitacoes.filter(l => l.chave_empresa === emp.chave_empresa).length;
-                          const certsCount = atestados.filter(c => c.chave_empresa === emp.chave_empresa).length;
-
-                          return (
-                            <tr key={emp.id} className={`hover:bg-slate-50/50 transition ${isCurrent ? 'bg-blue-50/10' : ''}`}>
-                              <td className="px-4 py-3 font-mono font-bold text-xs text-blue-700">{emp.chave_empresa}</td>
-                              <td className="px-4 py-3 font-semibold text-slate-800">{emp.nome}</td>
-                              <td className="px-4 py-3 font-mono text-xs text-slate-500">{emp.cnpj}</td>
-                              <td className="px-4 py-3 text-center font-bold text-slate-700">{bidsCount}</td>
-                              <td className="px-4 py-3 text-center font-semibold text-slate-700">{certsCount}</td>
-                              <td className="px-4 py-3 text-center">
-                                {isCurrent ? (
-                                  <span className="bg-blue-50 border border-blue-120 text-blue-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                    Ativa
-                                  </span>
-                                ) : (
-                                  <button
-                                    onClick={() => setActiveCompanyKey(emp.chave_empresa)}
-                                    className="bg-slate-50 hover:bg-slate-105 border text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider transition cursor-pointer"
-                                  >
-                                    Ativar
-                                  </button>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-right">
-                                <div className="flex gap-2 justify-end">
-                                  <button
-                                    onClick={() => setEditingCompany(emp)}
-                                    className="text-slate-400 hover:text-blue-650 p-1"
-                                    title="Editar Empresa"
-                                  >
-                                    <Edit className="w-3.5 h-3.5 inline" />
-                                  </button>
-                                  {empresas.length > 1 && (
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Tem certeza que deseja excluir a empresa "${emp.nome}"? Seus editais e atestados perderão o vínculo ativo.`)) {
-                                          setEmpresas(empresas.filter(e => e.id !== emp.id));
-                                          if (isCurrent) {
-                                            const remaining = empresas.filter(e => e.id !== emp.id);
-                                            setActiveCompanyKey(remaining[0].chave_empresa);
-                                          }
-                                        }
-                                      }}
-                                      className="text-slate-400 hover:text-red-650 p-1"
-                                      title="Excluir Empresa"
-                                    >
-                                      <Trash className="w-3.5 h-3.5 inline" />
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </motion.div>
-          )}
-
-          {/* USUÁRIOS E PERFIS TAB SCREEN */}
-          {activeTab === 'usuarios' && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* Internal Sub-Tabs Navigation */}
-              <div className="flex justify-between items-center bg-slate-100 p-1 rounded-lg max-w-md border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => { setUserSubTab('usuarios'); setIsAddingUser(false); setEditingUser(null); }}
-                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'usuarios' ? 'bg-white shadow-xs text-slate-950 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Controle de Usuários
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setUserSubTab('perfis'); setIsAddingProfile(false); setEditingProfile(null); }}
-                  className={`flex-1 py-1.5 px-3 rounded-md text-xs font-bold transition-all ${userSubTab === 'perfis' ? 'bg-white shadow-xs text-slate-950 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  Perfis e Módulos
-                </button>
-              </div>
-
-              {/* USER MANAGEMENT SUB-TAB */}
-              {userSubTab === 'usuarios' && (
-                <div className="space-y-5">
-                  {isAddingUser ? (
-                    /* --- ADD USER OVERLAY --- */
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                      <div className="flex justify-between items-center border-b pb-3">
-                        <div>
-                          <h3 className="font-bold text-slate-850 text-sm">Adicionar Novo Usuário</h3>
-                          <p className="text-[11px] text-slate-400">Cadastre um colaborador para acesso ao painel de licitações</p>
-                        </div>
-                        <button onClick={() => setIsAddingUser(false)} className="text-slate-400 hover:text-slate-600">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Nome Completo:</label>
-                          <input
-                            type="text"
-                            value={newUserName}
-                            onChange={(e) => setNewUserName(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="EX: João da Silva"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">E-mail / Username Login:</label>
-                          <input
-                            type="text"
-                            value={newUserEmail}
-                            onChange={(e) => setNewUserEmail(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="EX: joao@empresa.com"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Senha de Acesso:</label>
-                          <input
-                            type="text"
-                            value={newUserPassword}
-                            onChange={(e) => setNewUserPassword(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Perfil de Acesso:</label>
-                          <select
-                            value={newUserProfileId}
-                            onChange={(e) => setNewUserProfileId(e.target.value)}
-                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
-                          >
-                            {perfis.map(p => (
-                              <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-slate-600 font-semibold mb-1">Empresa Padrão Autorizada:</label>
-                          <select
-                            value={newUserCompanyKey}
-                            onChange={(e) => setNewUserCompanyKey(e.target.value)}
-                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
-                          >
-                            {empresas.map(emp => (
-                              <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-3 pt-4 border-t">
-                        <button
-                          onClick={() => setIsAddingUser(false)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleAddUser}
-                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          Salvar Usuário
-                        </button>
-                      </div>
-                    </div>
-                  ) : editingUser ? (
-                    /* --- EDIT USER OVERLAY --- */
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                      <div className="flex justify-between items-center border-b pb-3">
-                        <div>
-                          <h3 className="font-bold text-slate-850 text-sm">Editar Usuário Corporativo</h3>
-                          <p className="text-[11px] text-slate-400">Modifique os parâmetros de login do colaborador</p>
-                        </div>
-                        <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Nome Completo:</label>
-                          <input
-                            type="text"
-                            value={editingUser.nome}
-                            onChange={(e) => setEditingUser({ ...editingUser, nome: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-400 font-semibold mb-1 cursor-not-allowed">E-mail / Login (Inalterável):</label>
-                          <input
-                            type="text"
-                            disabled
-                            value={editingUser.email}
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded cursor-not-allowed font-mono text-slate-400"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Alterar Senha:</label>
-                          <input
-                            type="text"
-                            value={editingUser.senha}
-                            onChange={(e) => setEditingUser({ ...editingUser, senha: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Perfil de Acesso:</label>
-                          <select
-                            value={editingUser.perfilId}
-                            disabled={editingUser.email === 'admin'}
-                            onChange={(e) => setEditingUser({ ...editingUser, perfilId: e.target.value })}
-                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
-                          >
-                            {perfis.map(p => (
-                              <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="md:col-span-2">
-                          <label className="block text-slate-600 font-semibold mb-1">Empresa Padrão Autorizada:</label>
-                          <select
-                            value={editingUser.chave_empresa}
-                            disabled={editingUser.email === 'admin'}
-                            onChange={(e) => setEditingUser({ ...editingUser, chave_empresa: e.target.value })}
-                            className="w-full px-2 py-2 border border-slate-200 rounded focus:outline-none bg-white font-medium"
-                          >
-                            {editingUser.email === 'admin' && <option value="ALL">Todas (Acesso Geral)</option>}
-                            {empresas.map(emp => (
-                              <option key={emp.chave_empresa} value={emp.chave_empresa}>{emp.nome} ({emp.chave_empresa})</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-3 pt-4 border-t">
-                        <button
-                          onClick={() => setEditingUser(null)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={() => handleSaveEditUser(editingUser)}
-                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          Salvar Alterações
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* --- NORMAL USER LIST TABLE --- */
-                    <>
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                        <div>
-                          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                            <User className="w-5 h-5 text-indigo-600" style={{ color: primaryColor }} />
-                            Controle de Usuários Corporativos
-                          </h2>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Cadastre e edite as credenciais de colaboradores. Cada usuário é vinculado a um Perfil de Acesso e a uma Empresa obrigatória.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewUserEmail('');
-                            setNewUserName('');
-                            setNewUserPassword('123');
-                            setNewUserProfileId('perfil-analista');
-                            setNewUserCompanyKey(activeCompanyKey || 'LICITATECH');
-                            setIsAddingUser(true);
-                          }}
-                          className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Adicionar Usuário
-                        </button>
-                      </div>
-                      
-                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                              <th className="px-4 py-3 font-semibold w-1/4">Nome do Colaborador</th>
-                              <th className="px-4 py-3 font-semibold w-1/4">E-mail / Login</th>
-                              <th className="px-4 py-3 font-semibold w-1/6">Senha</th>
-                              <th className="px-4 py-3 font-semibold text-center w-1/5">Perfil de Acesso</th>
-                              <th className="px-4 py-3 font-semibold text-center w-1/5">Empresa Cadastrada</th>
-                              <th className="px-4 py-3 font-semibold text-right w-[100px]">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 text-sm animate-fade-in">
-                            {usuarios.map((u, idx) => {
-                              const isSuperAdmin = u.email === 'admin';
-                              const currentProfile = perfis.find(p => p.id === u.perfilId)?.nome || u.perfilId;
-                              const currentCompany = empresas.find(e => e.chave_empresa === u.chave_empresa)?.nome || u.chave_empresa;
-                              
-                              return (
-                                <tr key={idx} className="hover:bg-slate-50/50 transition">
-                                  <td className="px-4 py-3 font-semibold text-slate-800">{u.nome}</td>
-                                  <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.email}</td>
-                                  <td className="px-4 py-3 text-slate-500 text-xs font-mono">{u.senha || '•••'}</td>
-                                  <td className="px-4 py-3 text-center text-xs font-medium text-slate-700">
-                                    <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{currentProfile}</span>
-                                  </td>
-                                  <td className="px-4 py-3 text-center text-xs font-medium text-slate-700">
-                                    <span className="bg-blue-50/70 border border-blue-100 text-blue-700 px-2 py-0.5 rounded">{currentCompany}</span>
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex gap-2 justify-end">
-                                      <button
-                                        onClick={() => setEditingUser(u)}
-                                        className="text-slate-400 hover:text-blue-650 p-1"
-                                        title="Editar Usuário"
-                                      >
-                                        <Edit className="w-3.5 h-3.5 inline" />
-                                      </button>
-                                      {isSuperAdmin ? (
-                                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 font-mono py-1 select-none pr-1">Fixo</span>
-                                      ) : (
-                                        <button
-                                          onClick={() => {
-                                            if (confirm(`Tem certeza que deseja remover o acesso para "${u.nome}"?`)) {
-                                              setUsuarios(usuarios.filter(us => us.email !== u.email));
-                                            }
-                                          }}
-                                          className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
-                                          title="Excluir Usuário"
-                                        >
-                                          <Trash className="w-3.5 h-3.5 inline" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* PROFILES AND MODULES SUB-TAB */}
-              {userSubTab === 'perfis' && (
-                <div className="space-y-5">
-                  {isAddingProfile ? (
-                    /* --- ADD PROFILE OVERLAY --- */
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                      <div className="flex justify-between items-center border-b pb-3">
-                        <div>
-                          <h3 className="font-bold text-slate-850 text-sm">Criar Novo Perfil de Acesso</h3>
-                          <p className="text-[11px] text-slate-400">Configure as permissões de acesso aos módulos do sistema</p>
-                        </div>
-                        <button onClick={() => setIsAddingProfile(false)} className="text-slate-400 hover:text-slate-600">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Nome do Perfil:</label>
-                          <input
-                            type="text"
-                            value={newProfileName}
-                            onChange={(e) => setNewProfileName(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="EX: Coordenador de Propostas"
-                          />
-                        </div>
-
-                        <div className="bg-slate-50 border p-4 rounded-lg space-y-3">
-                          <h4 className="font-bold text-slate-700 pb-1 border-b">Módulos que este perfil pode visualizar e operar:</h4>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileDashboard}
-                                onChange={(e) => setNewProfileDashboard(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Painel Principal & Licitações</span>
-                                <p className="text-[10px] text-slate-400">Acesso completo ao Funil, Indicadores e Editais Recentes</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileAgenda}
-                                onChange={(e) => setNewProfileAgenda(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Agenda de Prazos Expandida</span>
-                                <p className="text-[10px] text-slate-400">Visualização do calendário de datas de propostas e aberturas</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileScanner}
-                                onChange={(e) => setNewProfileScanner(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Scanner Assistente de Editais IA</span>
-                                <p className="text-[10px] text-slate-400">Carregamento e processamento por OCR e IA Gemini de novos arquivos PDF</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileAtestados}
-                                onChange={(e) => setNewProfileAtestados(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Biblioteca de Atestados Técnicos</span>
-                                <p className="text-[10px] text-slate-400">Controle e cadastro de atestados da empresa</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileEmpresas}
-                                onChange={(e) => setNewProfileEmpresas(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Gestão Corporativa (Empresas)</span>
-                                <p className="text-[10px] text-slate-400">Acesso para configurar novas Empresas do conglomerado</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={newProfileUsuariosPerfis}
-                                onChange={(e) => setNewProfileUsuariosPerfis(e.target.checked)}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Usuários & Perfis</span>
-                                <p className="text-[10px] text-slate-400">Esta tela. Gerencie quem acessa e quais as permissões</p>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-3 pt-4 border-t">
-                        <button
-                          onClick={() => setIsAddingProfile(false)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={handleAddProfile}
-                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          Criar Perfil
-                        </button>
-                      </div>
-                    </div>
-                  ) : editingProfile ? (
-                    /* --- EDIT PROFILE OVERLAY --- */
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 font-sans text-xs">
-                      <div className="flex justify-between items-center border-b pb-3">
-                        <div>
-                          <h3 className="font-bold text-slate-850 text-sm">Editar Perfil de Acesso</h3>
-                          <p className="text-[11px] text-slate-400">Atualize as regras e permissões nos módulos para o perfil &quot;{editingProfile.nome}&quot;</p>
-                        </div>
-                        <button onClick={() => setEditingProfile(null)} className="text-slate-400 hover:text-slate-600">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Nome do Perfil:</label>
-                          <input
-                            type="text"
-                            value={editingProfile.nome}
-                            disabled={editingProfile.id === 'perfil-admin'}
-                            onChange={(e) => setEditingProfile({ ...editingProfile, nome: e.target.value })}
-                            className="w-full px-3 py-2 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 font-semibold disabled:bg-slate-55 disabled:text-slate-400 disabled:cursor-not-allowed"
-                          />
-                        </div>
-
-                        <div className="bg-slate-50 border p-4 rounded-lg space-y-3">
-                          <h4 className="font-bold text-slate-700 pb-1 border-b">Módulos habilitados:</h4>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.dashboard}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, dashboard: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Painel Principal & Licitações</span>
-                                <p className="text-[10px] text-slate-400">Funil, Indicadores e Editais Recentes</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.agenda}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, agenda: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Agenda de Prazos Expandida</span>
-                                <p className="text-[10px] text-slate-400">Calendário de datas críticas</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.scanner}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, scanner: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Scanner Assistente de Editais IA</span>
-                                <p className="text-[10px] text-slate-400">Carregamento e processamento por OCR/IA de PDFs</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.atestados}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, atestados: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Biblioteca de Atestados Técnicos</span>
-                                <p className="text-[10px] text-slate-400">Acervos de capacidade técnica</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.empresas}
-                                disabled={editingProfile.id === 'perfil-admin'}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, empresas: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:slate-300 disabled:cursor-not-allowed"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Gestão Corporativa (Empresas)</span>
-                                <p className="text-[10px] text-slate-400">Gerenciar as corporate keys do sistema</p>
-                              </div>
-                            </label>
-
-                            <label className="flex items-center gap-2 cursor-pointer p-1.5 hover:bg-white rounded transition">
-                              <input
-                                type="checkbox"
-                                checked={editingProfile.usuarios_perfis}
-                                disabled={editingProfile.id === 'perfil-admin'}
-                                onChange={(e) => setEditingProfile({ ...editingProfile, usuarios_perfis: e.target.checked })}
-                                className="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 disabled:slate-300 disabled:cursor-not-allowed"
-                              />
-                              <div>
-                                <span className="font-semibold text-slate-800">Usuários & Perfis</span>
-                                <p className="text-[10px] text-slate-400">Gerenciar permissões e usuários</p>
-                              </div>
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-3 pt-4 border-t">
-                        <button
-                          onClick={() => setEditingProfile(null)}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded text-xs transition"
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          onClick={() => handleSaveEditProfile(editingProfile)}
-                          className="text-white font-bold px-4 py-2 rounded text-xs transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          Salvar Alterações
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    /* --- NORMAL PROFILES LIST TABLE --- */
-                    <>
-                      <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-                        <div>
-                          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-indigo-600" style={{ color: primaryColor }} />
-                            Perfis e Módulos Cadastrados
-                          </h2>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Defina quais seções de menu (Dashboard, Agenda, Inteligência, Atestados, Empresas, Configurações) estão disponíveis para cada nível de perfil de acesso.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewProfileName('');
-                            setNewProfileDashboard(true);
-                            setNewProfileAgenda(true);
-                            setNewProfileScanner(true);
-                            setNewProfileAtestados(true);
-                            setNewProfileEmpresas(false);
-                            setNewProfileUsuariosPerfis(false);
-                            setNewProfileAjustes(false);
-                            setIsAddingProfile(true);
-                          }}
-                          className="text-white text-xs px-3.5 py-1.5 rounded font-bold flex items-center gap-1 transition shadow-sm"
-                          style={{ backgroundColor: primaryColor }}
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Adicionar Perfil
-                        </button>
-                      </div>
-
-                      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden font-sans">
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                              <th className="px-4 py-3 font-semibold w-1/4">Nome do Perfil</th>
-                              <th className="px-4 py-3 font-semibold w-2/3">Módulos Corporativos Habilitados</th>
-                              <th className="px-4 py-3 font-semibold text-right w-[100px]">Ações</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 text-sm">
-                            {perfis.map((p, idx) => {
-                              const isCoreProfile = p.id === 'perfil-admin';
-                              return (
-                                <tr key={p.id} className="hover:bg-slate-50/50 transition">
-                                  <td className="px-4 py-3 font-bold text-slate-800">{p.nome}</td>
-                                  <td className="px-4 py-3">
-                                    <div className="flex flex-wrap gap-1.5">
-                                      {p.dashboard && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Painel / Licitações</span>}
-                                      {p.agenda && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Calendário</span>}
-                                      {p.scanner && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Scanner IA / Licitações</span>}
-                                      {p.atestados && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Acervo Técnico</span>}
-                                      {p.empresas && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Empresas</span>}
-                                      {p.usuarios_perfis && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Usuários / Perfis</span>}
-                                      {p.ajustes && <span className="bg-emerald-50 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-bold">Ajustes / Migrations</span>}
-                                      {!p.dashboard && !p.agenda && !p.scanner && !p.atestados && !p.empresas && !p.usuarios_perfis && !p.ajustes && (
-                                        <span className="text-red-550 font-bold text-[10px]">Restrição Absoluta (Sem Acesso)</span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td className="px-4 py-3 text-right">
-                                    <div className="flex gap-2 justify-end">
-                                      <button
-                                        onClick={() => setEditingProfile(p)}
-                                        className="text-slate-400 hover:text-blue-650 p-1"
-                                        title="Editar Perfil"
-                                      >
-                                        <Edit className="w-3.5 h-3.5 inline" />
-                                      </button>
-                                      {isCoreProfile ? (
-                                        <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 font-mono py-1 select-none pr-1">Fixo</span>
-                                      ) : (
-                                        <button
-                                          onClick={() => {
-                                            if (confirm(`Tem certeza que deseja remover o perfil "${p.nome}"? Usuários vinculados poderão perder acesso.`)) {
-                                              setPerfis(perfis.filter(pf => pf.id !== p.id));
-                                            }
-                                          }}
-                                          className="text-slate-400 hover:text-red-650 transition cursor-pointer p-1"
-                                          title="Excluir Perfil"
-                                        >
-                                          <Trash className="w-3.5 h-3.5 inline" />
-                                        </button>
-                                      )}
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* AJUSTES TAB SCREEN (REQUIREMENT 4.f / 5 migrations) */}
-          {activeTab === 'ajustes' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
+          {/* ADESÃO EDITAL */}
+          {activeTab === 'adesao_edital' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6 max-w-4xl mx-auto py-4">
               <div>
-                <h2 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-2 font-sans">
-                  <Settings className="w-6 h-6 text-slate-600" />
-                  Configurações Centralizadas
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Gerencie preferências de notificação corporativa, repositório de documentos base e personalização do sistema.
-                </p>
+                <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">NOVA ADESÃO</h3>
+                <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Adesão Edital</h2>
               </div>
-
-              {/* Layout layout of cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE O EDITAL</label>
+                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
+                    <option>Selecione um edital...</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE O MINISTÉRIO</label>
+                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
+                    <option>Selecione um ministério...</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">SELECIONE A AÇÃO</label>
+                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
+                    <option>Selecione uma ação...</option>
+                  </select>
+                </div>
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">A) NOME DA ENTIDADE OU ENTE PÚBLICO</label>
+                  <input type="text" className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">B) CNPJ</label>
+                  <input type="text" placeholder="00.000.000/0000-00" className="w-full bg-slate-50 text-slate-400 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+                </div>
                 
-                {/* Visual styling and Session controls column */}
-                <div className="lg:col-span-4 space-y-6">
-                  
-                  {/* Styling customizers (Requirement 3: customization of background, panels, borders, fonts) */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                       <SlidersHorizontal className="w-4 h-4 text-slate-600" /> Personalização do Sistema
-                    </h3>
-                    
-                    <div className="space-y-4 text-xs animate-fade-in">
-                      {/* Theme Presets (Quick Themes) */}
-                      <div>
-                        <span className="block font-semibold text-slate-700 mb-1.5">Temas de Interface Rápidos:</span>
-                        <div className="grid grid-cols-2 gap-1.5 pb-2">
-                          <button
-                            onClick={() => {
-                              setPrimaryColor('#059669');
-                              setAppBgColor('#F8FAFC');
-                              setPanelBgColor('#FFFFFF');
-                              setPanelBorderColor('#ECEEF0');
-                              setPanelBorderWidth(1);
-                              setSystemFont('Work Sans');
-                              setFontSizeScale('normal');
-                            }}
-                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
-                          >
-                            🟢 Democracia Digital
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPrimaryColor('#10B981');
-                              setAppBgColor('#0B0F19');
-                              setPanelBgColor('#161F30');
-                              setPanelBorderColor('#24324D');
-                              setPanelBorderWidth(1);
-                              setSystemFont('Inter');
-                              setFontSizeScale('normal');
-                            }}
-                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
-                          >
-                            🌑 Dark Mode Pro
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPrimaryColor('#1E40AF');
-                              setAppBgColor('#F1F5F9');
-                              setPanelBgColor('#FFFFFF');
-                              setPanelBorderColor('#D1D5DB');
-                              setPanelBorderWidth(1);
-                              setSystemFont('Space Grotesk');
-                              setFontSizeScale('normal');
-                            }}
-                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
-                          >
-                            🔵 Clássico Federal
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPrimaryColor('#7C2D12');
-                              setAppBgColor('#FAF8F5');
-                              setPanelBgColor('#FFFDFB');
-                              setPanelBorderColor('#EFEAE2');
-                              setPanelBorderWidth(2);
-                              setSystemFont('Georgia');
-                              setFontSizeScale('large');
-                            }}
-                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition cursor-pointer"
-                          >
-                            📜 Warm Ivory
-                          </button>
-                          <button
-                            onClick={() => {
-                              setPrimaryColor('#22C55E');
-                              setAppBgColor('#000000');
-                              setPanelBgColor('#111111');
-                              setPanelBorderColor('#22C55E');
-                              setPanelBorderWidth(2);
-                              setSystemFont('Fira Code');
-                              setFontSizeScale('large');
-                            }}
-                            className="text-[10px] text-slate-700 hover:text-slate-900 border border-slate-200 rounded px-2 py-1 bg-slate-50 hover:bg-slate-100 text-left truncate transition col-span-2 cursor-pointer"
-                          >
-                            ⚡ Retro Cyber Terminal
-                          </button>
-                        </div>
-                      </div>
-
-                      <hr className="border-slate-100" />
-
-                      {/* Primary Color Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Cor Primária do Sistema:</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={primaryColor}
-                            onChange={(e) => setPrimaryColor(e.target.value)}
-                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                          <span className="font-mono text-slate-500 font-bold">{primaryColor}</span>
-                        </div>
-                      </div>
-
-                      {/* App Background Color Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Cor do Fundo do App:</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={appBgColor}
-                            onChange={(e) => setAppBgColor(e.target.value)}
-                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                          <span className="font-mono text-slate-500 font-bold">{appBgColor}</span>
-                        </div>
-                      </div>
-
-                      {/* Panel Background Color Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Cor dos Painéis (Cards):</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={panelBgColor}
-                            onChange={(e) => setPanelBgColor(e.target.value)}
-                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                          <span className="font-mono text-slate-500 font-bold">{panelBgColor}</span>
-                        </div>
-                      </div>
-
-                      {/* Panel Border Color Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Cor de Borda dos Painéis:</label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            value={panelBorderColor}
-                            onChange={(e) => setPanelBorderColor(e.target.value)}
-                            className="w-10 h-8 rounded cursor-pointer border border-slate-200"
-                          />
-                          <span className="font-mono text-slate-500 font-bold">{panelBorderColor}</span>
-                        </div>
-                      </div>
-
-                      {/* Panel Border Width Slider */}
-                      <div>
-                        <div className="flex justify-between items-center text-slate-600 font-semibold mb-1">
-                          <span>Espessura das Bordas:</span>
-                          <span className="font-mono font-bold text-slate-750">{panelBorderWidth}px</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0"
-                          max="5"
-                          value={panelBorderWidth}
-                          onChange={(e) => setPanelBorderWidth(Number(e.target.value))}
-                          className="w-full accent-emerald-600 cursor-pointer"
-                        />
-                      </div>
-
-                      <hr className="border-slate-100" />
-
-                      {/* System Font Family Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Estilo de Fonte (Família):</label>
-                        <select
-                          value={systemFont}
-                          onChange={(e) => setSystemFont(e.target.value)}
-                          className="w-full py-1.5 px-2 bg-slate-50 border border-slate-200 rounded text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
-                        >
-                          <option value="Work Sans">Work Sans (Padrão)</option>
-                          <option value="Inter">Inter (Moderna)</option>
-                          <option value="Space Grotesk">Space Grotesk (Tech)</option>
-                          <option value="Georgia">Georgia (Serifada / Clássica)</option>
-                          <option value="Fira Code">Fira Code (Código / Mono)</option>
-                        </select>
-                      </div>
-
-                      {/* System Font Size scale Picker */}
-                      <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Tamanho Global de Fonte:</label>
-                        <select
-                          value={fontSizeScale}
-                          onChange={(e) => setFontSizeScale(e.target.value as any)}
-                          className="w-full py-1.5 px-2 bg-slate-50 border border-slate-200 rounded text-xs font-semibold text-slate-700 focus:outline-none focus:border-emerald-600 cursor-pointer"
-                        >
-                          <option value="small">Pequeno</option>
-                          <option value="normal">Normal (Padrão)</option>
-                          <option value="large">Grande</option>
-                          <option value="xlarge">Muito Grande</option>
-                        </select>
-                      </div>
+                <div className="border border-slate-100 rounded-xl p-5 mt-4">
+                  <h4 className="text-xs font-bold text-red-600 tracking-wider uppercase mb-4">CONTATO DA ENTIDADE</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">NOME COMPLETO</label>
+                      <input type="text" placeholder="Nome do responsável" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                     </div>
-                  </div>
-
-                  {/* Security Timeout slider configuration card */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                      <Clock className="w-4 h-4 text-slate-600" /> Timeout de Inatividade (Sessão Única)
-                    </h3>
-                    <div className="space-y-3 text-xs">
-                      <div className="flex justify-between items-center text-slate-700">
-                        <span>Tempo limite de fechamento:</span>
-                        <span className="font-mono font-bold text-red-600">{timeoutMinutes} minutos</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="60"
-                        value={timeoutMinutes}
-                        onChange={(e) => setTimeoutMinutes(Number(e.target.value))}
-                        className="w-full accent-red-650"
-                      />
-                      <p className="text-[10px] text-slate-400">
-                        O sistema se autodesconecta e redireciona ao login uma vez que o contador atinge zero para evitar acessos externos.
-                      </p>
-
-                      <button
-                        onClick={triggerAlternativeSessionLogin}
-                        className="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded text-[10px] flex items-center justify-center gap-1 border border-slate-200 transition"
-                      >
-                        <Power className="w-3.5 h-3.5" /> Forçar Segunda Sessão (Simular Desconexão de IP)
-                      </button>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">TELEFONE</label>
+                      <input type="text" placeholder="(00) 00000-0000" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider mb-1">E-MAIL</label>
+                      <input type="email" placeholder="contato@entidade.org" className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-red-500" />
                     </div>
                   </div>
                 </div>
 
-                {/* Notifications & Documents Repository Cards */}
-                <div className="lg:col-span-8 space-y-6">
-                  
-                  {/* Preferences triggers card */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                      <Bell className="w-4 h-4 text-slate-600" /> Regras de Notificação de Alertas
-                    </h3>
-                    <div className="space-y-3.5 text-xs">
-                      
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="font-bold text-slate-700">Alerta de Prazos Urgentes (48h)</p>
-                          <p className="text-slate-400 text-[10.5px]">Emails automáticos de lembretes e relatórios de lances em 48 horas.</p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={prefEmail}
-                          onChange={() => setPrefEmail(!prefEmail)}
-                          className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
-                        />
-                      </div>
-
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="font-bold text-slate-700">Notificação de Novos Editais Analisados</p>
-                          <p className="text-slate-400 text-[10.5px]">Compilado de extrações de editais compatíveis com a especialização da empresa.</p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={prefNewBids}
-                          onChange={() => setPrefNewBids(!prefNewBids)}
-                          className="rounded text-red-600 focus:ring-red-500 w-4 h-4"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Documents Base Repository mimics */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                      <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-                        <FolderOpen className="w-4 h-4 text-slate-600" /> Repositório Base de Documentação
-                      </h3>
-
-                      <label className="text-slate-500 font-bold text-xs flex items-center gap-1 hover:text-red-600 transition cursor-pointer">
-                        <Upload className="w-4 h-4" /> Importar Documento Mestre
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={() => {
-                            setRepoFileUploaded(true);
-                            setDocumentos([
-                              { id: 'doc4', nome_arquivo: 'Novo_Alvara_CREA.pdf', tag: 'Alvará Municipal', validade: '2026-12-31' },
-                              ...documentos
-                            ]);
-                          }}
-                        />
-                      </label>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      {documentos.map(doc => (
-                        <div key={doc.id} className="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-200">
-                          <div className="flex items-center gap-2">
-                            <span className="p-1 bg-white border rounded text-slate-600">📄</span>
-                            <div>
-                              <p className="font-semibold text-slate-700">{doc.nome_arquivo}</p>
-                              <p className="text-[10px] text-slate-400">Tipo da Tag: {doc.tag} - Vence em: {new Date(doc.validade + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
-                            </div>
-                          </div>
-                          
-                          <a
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); alert(`Download simulado do arquivo: ${doc.nome_arquivo}`); }}
-                            className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-800"
-                            title="Baixar Documento Base"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Supabase connection parameters sync config card */}
-                  <div className="bg-white p-5 rounded-xl border border-[#eceef0] shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                      <Database className="w-4 h-4 text-slate-600" /> Parâmetros de Sincronização Supabase
-                    </h3>
-                    <div className="space-y-3.5 text-xs">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Supabase Project URL:</label>
-                          <input
-                            type="text"
-                            value={supabaseUrl}
-                            onChange={(e) => setSupabaseUrl(e.target.value)}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-red-500 font-mono"
-                            placeholder="https://xxxxxx.supabase.co"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-slate-600 font-semibold mb-1">Supabase Anon Key:</label>
-                          <input
-                            type="password"
-                            value={supabaseKey}
-                            onChange={(e) => setSupabaseKey(e.target.value)}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded focus:outline-none focus:border-red-500 font-mono"
-                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pointer-events-auto">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2.5 h-2.5 rounded-full ${supabaseMode === 'connected' ? 'bg-emerald-500' : 'bg-amber-500 animate-ping'}`}></span>
-                          <span className="font-semibold text-[11px] uppercase text-slate-500">
-                            Modo: {supabaseMode === 'connected' ? 'Supabase Conectado' : 'Offline Local Persistente'}
-                          </span>
-                        </div>
-                        <button
-                          onClick={handleSupabaseSync}
-                          disabled={isSyncing}
-                          className="bg-[#091426] hover:bg-slate-800 text-white font-bold px-4 py-1.5 rounded-lg transition disabled:slate-350"
-                        >
-                          {isSyncing ? "Verificando..." : "Testar & Forçar Sincronização automática"}
-                        </button>
-                      </div>
-
-                      {/* Sync logs output block */}
-                      {syncLogs.length > 0 && (
-                        <div className="bg-slate-900 text-slate-300 p-3 rounded-lg font-mono text-[10.5px] max-h-36 overflow-y-auto space-y-1">
-                          {syncLogs.map((log, lIdx) => (
-                            <p key={lIdx} className="leading-5">🤖 {log}</p>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* SUPABASE SQL MIGRATIONS BLOCK (REQUIREMENT 5 migrations generation) */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm space-y-3">
-                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                      <h3 className="font-bold text-slate-800 text-sm">
-                        Gerador de Migrations do Banco de Dados Supabase (PostgreSQL)
-                      </h3>
-                      <button
-                        onClick={handleCopyCode}
-                        className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded font-bold hover:bg-slate-250 transition flex items-center gap-1 border"
-                      >
-                        {copySuccess ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" /> Copiado!
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" /> Copiar SQL
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      Utilize o roteiro de migração de esquema abaixo no editor SQL do console do Supabase para inicializar todas as chaves relacionais indexadas automaticamente:
-                    </p>
-                    <div className="bg-slate-950 p-4 rounded-lg overflow-x-auto max-h-56">
-                      <pre className="text-slate-300 text-[11px] font-mono leading-relaxed select-all">
-{SQL_MIGRATION_SCRIPT}
-                      </pre>
-                    </div>
-                  </div>
-
+                <div className="pt-2">
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">C) NOME DO PROJETO</label>
+                  <input type="text" className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20" />
                 </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">D) RESUMO / OBJETO DO PROJETO (NO MÁXIMO 3 LINHAS)</label>
+                  <textarea rows={3} className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20"></textarea>
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">E) DESCRIÇÃO DE COMO PRETENDE DESENVOLVER O PROJETO</label>
+                  <textarea rows={5} className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20"></textarea>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 tracking-wider mb-2">COMO FICOU SABENDO?</label>
+                  <select className="w-full bg-slate-50 text-slate-700 text-sm font-medium border border-slate-200 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-red-500/20">
+                    <option>Selecione uma opção...</option>
+                  </select>
+                </div>
+
               </div>
             </motion.div>
           )}
 
+          {/* EMENDAS */}
+          {activeTab === 'emendas' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
+                <div>
+                  <h3 className="text-[10px] uppercase font-bold text-red-600 tracking-wider">GESTÃO FINANCEIRA</h3>
+                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">Minhas Emendas</h2>
+                  <p className="text-sm text-slate-500 font-medium">Acompanhamento de emendas e orçamentos destinados</p>
+                </div>
+                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
+                  <Plus className="w-4 h-4 stroke-[3px]" /> Nova Emenda
+                </button>
+              </div>
+
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-200">
+                  <div className="relative w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" placeholder="Buscar emendas..." className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 bg-slate-50" />
+                  </div>
+                </div>
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    <tr>
+                      <th className="px-5 py-4 border-b border-slate-200">DATA</th>
+                      <th className="px-5 py-4 border-b border-slate-200">OBJETO</th>
+                      <th className="px-5 py-4 border-b border-slate-200">MUNICÍPIO</th>
+                      <th className="px-5 py-4 border-b border-slate-200">BENEFICIÁRIO</th>
+                      <th className="px-5 py-4 border-b border-slate-200">AUTOR</th>
+                      <th className="px-5 py-4 border-b border-slate-200">TIPO</th>
+                      <th className="px-5 py-4 border-b border-slate-200">PROJETO VINCULADO</th>
+                      <th className="px-5 py-4 border-b border-slate-200">VALOR</th>
+                      <th className="px-5 py-4 border-b border-slate-200">AÇÕES</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-xs">
+                    {[
+                      { date: '27/05/2026', title: 'CONSTRUÇÃO DE ESCOLAS PÚBLICAS', city: 'Campo Mourão - PR', ben: 'SEDUC', author: 'Dep. Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 5.800.000,00' },
+                      { date: '11/04/2026', title: 'Construção de Centro de Assistência Psicosocial', city: 'Cafeara - PR', ben: 'Prefeitura Municipal de Rio Grande', author: 'Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 1.350.000,00' },
+                      { date: '22/04/2026', title: 'COSTRÇÃO DE UMA SUBESTAÇÃO DE ENERGIA', city: 'São José dos Pinhais - PR', ben: 'ESCOLA ESTADUAL', author: 'DEP. CAROL DARTORA', type: 'DE RELATOR (RP 9)', proj: '-', val: 'R$ 3.000.000,00' },
+                      { date: '12/04/2026', title: 'Construção de Posto de Saúde no Bairro Conceição', city: 'Curitiba - PR', ben: 'Prefeitura Municipal', author: 'Carol Dartora', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 15.000.000,00' },
+                      { date: '30/03/2026', title: 'Reforma e Ampliação de Escolas Municipais', city: 'Antônio Olinto - PR', ben: 'Porto Alegre - RS', author: 'DEP. CAROL DARTORA', type: 'INDIVIDUAIS (RP 6)', proj: '-', val: 'R$ 1.365.600,00' },
+                      { date: '30/05/2026', title: 'REFORMAS DE ESCOLAS MUNICIPAIS', city: 'Centenário do Sul - PR', ben: 'ESCOLAS MUNICIPAIS DO ESTADO', author: 'DEP. CAROL DARTORA', type: 'DE BANCADA (RP 7)', proj: '-', val: 'R$ 350.000,00' },
+                    ].map((row, i) => (
+                      <tr key={i} className="hover:bg-slate-50">
+                        <td className="px-5 py-4 text-[11px] font-mono text-slate-500">{row.date}</td>
+                        <td className="px-5 py-4 font-bold max-w-[200px] truncate" title={row.title}>{row.title}</td>
+                        <td className="px-5 py-4">{row.city}</td>
+                        <td className="px-5 py-4 max-w-[150px] truncate" title={row.ben}>{row.ben}</td>
+                        <td className="px-5 py-4">{row.author}</td>
+                        <td className="px-5 py-4"><span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider border border-slate-200">{row.type}</span></td>
+                        <td className="px-5 py-4 text-slate-400">{row.proj}</td>
+                        <td className="px-5 py-4 font-bold">{row.val}</td>
+                        <td className="px-5 py-4 flex items-center gap-3">
+                          <button className="text-slate-400 hover:text-blue-600"><RefreshCw className="w-3.5 h-3.5" /></button>
+                          <button className="text-slate-400 hover:text-slate-800"><Edit className="w-3.5 h-3.5" /></button>
+                          <button className="text-slate-400 hover:text-red-600"><Trash className="w-3.5 h-3.5" /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* USUÁRIOS */}
+          {activeTab === 'usuarios' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2"><Users className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CADASTRO DE USUÁRIOS</h2>
+                  <p className="text-sm text-slate-500 font-medium">Gerencie os usuários do sistema e seus acessos</p>
+                </div>
+                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
+                  <Plus className="w-4 h-4 stroke-[3px]" /> Novo Usuário
+                </button>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 border-b border-slate-200">E-mail / Usuário</th>
+                      <th className="px-6 py-4 border-b border-slate-200">Perfil</th>
+                      <th className="px-6 py-4 border-b border-slate-200">Deputado</th>
+                      <th className="px-6 py-4 border-b border-slate-200 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-sm">
+                    {[
+                      { email: 'adv.leandroneves@gmail.com', perfil: 'Emendas', dep: 'Carol Dartora' },
+                      { email: 'caroldartora13@gmail.com', perfil: 'Edital', dep: 'Carol Dartora' },
+                      { email: 'carla.deputadacarol@@gmail.com', perfil: 'Padrao', dep: 'Carol Dartora' },
+                      { email: 'franklin', perfil: 'Acesso Total', dep: 'Todos', admin: true },
+                      { email: 'leandrobrasilia13@gmail.com', perfil: 'Emendas', dep: 'Carol Dartora' },
+                      { email: 'carlosjorgeab@gmail.com', perfil: 'Administrador', dep: 'Carol Dartora' },
+                      { email: 'admin', perfil: 'Acesso Total', dep: 'Todos', admin: true },
+                    ].map((u, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-5 font-bold flex items-center gap-3">
+                          {u.email} 
+                          {u.admin && <span className="text-[9px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-black tracking-widest uppercase">ADMIN</span>}
+                        </td>
+                        <td className="px-6 py-4 text-slate-500">{u.perfil}</td>
+                        <td className="px-6 py-4 text-slate-500">{u.dep}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-3">
+                            <button className="text-slate-400 hover:text-slate-800"><Edit className="w-4 h-4" /></button>
+                            <button className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}
+
+          {/* PERFIS */}
+          {activeTab === 'perfis' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5">
+              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2"><Shield className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CADASTRO DE PERFIS</h2>
+                  <p className="text-sm text-slate-500 font-medium">Gerencie os perfis de acesso e suas permissões</p>
+                </div>
+                <button className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm hover:bg-red-700">
+                  <Plus className="w-4 h-4 stroke-[3px]" /> Novo Perfil
+                </button>
+              </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left text-sm border-collapse">
+                  <thead className="bg-[#F8FAFC] text-slate-500 text-[10px] uppercase font-bold tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 border-b border-slate-200 w-48">Nome do Perfil</th>
+                      <th className="px-6 py-4 border-b border-slate-200">Permissões</th>
+                      <th className="px-6 py-4 border-b border-slate-200 text-right w-24">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-800 font-medium text-sm">
+                    {[
+                      { nome: 'Edital', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Cadastro de Ministérios', c:'red'}, {t: 'Cadastro de Editais', c:'red'}] },
+                      { nome: 'Emendas', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Editais', c:'red'}, {t: 'Cadastro de Ministérios', c:'red'}] },
+                      { nome: 'Projetos', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Projetos', c:'red'}] },
+                      { nome: 'Administrador', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Cadastro de Ministérios', c: 'red'}, {t: 'Projetos', c:'red'}, {t: 'Cadastro de Usuários', c:'red'}, {t: 'Configurações', c:'red'}, {t: 'Relatórios', c:'red'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Editais', c:'red'}, {t: 'Cadastro de Perfis', c:'red'}, {t: 'Cadastro de Deputados', c:'red'}, {t: 'Cadastro de Partidos', c:'red'}, {t: 'Cadastro de Áreas Temáticas', c:'red'}] },
+                      { nome: 'Padrao', perms: [{t: 'Visão Geral'}, {t: 'Visão Mapa'}, {t: 'Adesão Edital'}, {t: 'Projetos', c:'red'}, {t: 'Emendas', c:'red'}, {t: 'Cadastro de Ministérios', c:'red'}, {t: 'Cadastro de Editais', c:'red'}] },
+                    ].map((p, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-5 font-bold align-top">{p.nome}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                             {p.perms.map((perm, ix) => (
+                               <span key={ix} className={`px-2.5 py-1 text-xs font-semibold rounded-md ${perm.c === 'red' ? 'text-red-500 bg-red-50' : 'text-slate-500 bg-slate-100'}`}>{perm.t}</span>
+                             ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 align-top">
+                          <div className="flex justify-end gap-3 mt-1">
+                            <button className="text-slate-400 hover:text-slate-800"><Edit className="w-4 h-4" /></button>
+                            <button className="text-slate-400 hover:text-red-600"><Trash className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
+          )}\n          {/* CONGIGURAÇÕES TAB */}
+          {activeTab === 'configuracoes' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-5 max-w-4xl mx-auto w-full pb-10">
+              <div className="flex justify-between items-end border-b border-slate-200 pb-5">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
+                    <Settings className="w-6 h-6 text-red-600 stroke-[2.5px]" /> CONFIGURAÇÕES DO SISTEMA
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium">Ajuste de cores, temas, fontes e comportamento</p>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-8 font-sans">
+                {/* Visual Colors Area */}
+                <div>
+                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">APARÊNCIA VISUAL - CORES</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Cor Primária (Header/Navbar Mobile)</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
+                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Fundo Geral do App (Background)</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={appBgColor} onChange={(e) => setAppBgColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
+                        <input type="text" value={appBgColor} onChange={(e) => setAppBgColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Fundo dos Painéis/Cartões</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={panelBgColor} onChange={(e) => setPanelBgColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
+                        <input type="text" value={panelBgColor} onChange={(e) => setPanelBgColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Borders Area */}
+                <div>
+                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">APARÊNCIA VISUAL - BORDAS</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Cor da Borda dos Painéis</label>
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={panelBorderColor} onChange={(e) => setPanelBorderColor(e.target.value)} className="h-10 w-16 p-1 bg-white border border-slate-200 rounded cursor-pointer shrink-0" />
+                        <input type="text" value={panelBorderColor} onChange={(e) => setPanelBorderColor(e.target.value)} className="w-full text-slate-700 text-sm font-mono border border-slate-200 rounded px-3 py-2 bg-slate-50 focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Espessura da Borda (px)</label>
+                      <input type="range" min="0" max="5" value={panelBorderWidth} onChange={(e) => setPanelBorderWidth(parseInt(e.target.value))} className="w-full mt-2 accent-red-600" />
+                      <div className="text-right text-xs text-slate-500 font-bold mt-1">{panelBorderWidth}px</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Typography Area */}
+                <div>
+                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">TIPOGRAFIA</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Fonte Principal do Sistema</label>
+                      <select value={systemFont} onChange={(e) => setSystemFont(e.target.value)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-1 focus:ring-red-500">
+                        <option value="Inter">Inter (Sans-Serif - Google)</option>
+                        <option value="Roboto">Roboto (Clássica - Padrão Android)</option>
+                        <option value="Work Sans">Work Sans (Geral Default)</option>
+                        <option value="Open Sans">Open Sans (Alta Leiturabilidade)</option>
+                        <option value="Arial, sans-serif">Arial (Clássica Web)</option>
+                        <option value="'JetBrains Mono', monospace">JetBrains Mono (Monoespaçada)</option>
+                        <option value="'Space Grotesk', sans-serif">Space Grotesk (Moderna e Larga)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Escala de Fonte Geral</label>
+                      <select value={fontSizeScale} onChange={(e) => setFontSizeScale(e.target.value as any)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none focus:ring-1 focus:ring-red-500">
+                        <option value="small">Menor (Compacta 85%)</option>
+                        <option value="normal">Normal (100% - Padrão)</option>
+                        <option value="large">Grande (115% - Melhor Leitura)</option>
+                        <option value="xlarge">Extra Grande (130% - Acessibilidade)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Security Section */}
+                <div className="pt-2">
+                  <h3 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-4 border-b pb-2">SEGURANÇA DA SESSÃO</h3>
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Timeout Automático (Minutos)</label>
+                    <input type="number" min="5" max="1440" value={timeoutMinutes} onChange={(e) => setTimeoutMinutes(parseInt(e.target.value))} className="w-full max-w-[200px] border border-slate-200 rounded px-3 py-2 text-sm bg-slate-50 focus:outline-none" />
+                    <p className="text-xs text-slate-400 mt-1">O usuário será desconectado automaticamente após esta inatividade.</p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
           </AnimatePresence>
         </div>
       </main>
