@@ -859,9 +859,78 @@ export default function Home() {
       setRawScannerText(selected.snippet);
     }
 
-    if (!docText.trim()) {
-      setScannerError("Por favor, digite o conteúdo do Edital, cole o texto ou carregue um arquivo local!");
+    const extractFallbackDataFromFileName = (fName: string) => {
+      const cleanName = fName.replace(/\.[^/.]+$/, "").replace(/_/g, " ").replace(/-/g, " ");
+      
+      let modalidade = "Pregão Eletrônico";
+      if (cleanName.toLowerCase().includes("concorrencia") || cleanName.toLowerCase().includes("concorrência")) {
+        modalidade = "Concorrência";
+      } else if (cleanName.toLowerCase().includes("tomada")) {
+        modalidade = "Tomada de Preços";
+      } else if (cleanName.toLowerCase().includes("dispensa")) {
+        modalidade = "Dispensa de Licitação";
+      } else if (cleanName.toLowerCase().includes("inexigibilidade")) {
+        modalidade = "Inexigibilidade";
+      } else if (cleanName.toLowerCase().includes("convite")) {
+        modalidade = "Convite";
+      }
+
+      let orgao = "Órgão Licitante (Não extraído do PDF)";
+      const parts = cleanName.split(/\s+/);
+      const keywords = ["prefeitura", "tribunal", "ministerio", "ministério", "secretaria", "governo", "camara", "câmara", "conselho", "saude", "saúde", "educacao", "educação"];
+      let foundKeywordIndex = -1;
+      for (let i = 0; i < parts.length; i++) {
+        if (keywords.includes(parts[i].toLowerCase())) {
+          foundKeywordIndex = i;
+          break;
+        }
+      }
+      if (foundKeywordIndex !== -1) {
+        orgao = parts.slice(foundKeywordIndex).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+      } else if (parts.length > 0) {
+        orgao = "Prefeitura de " + parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+      }
+
+      const objeto = `Contratação de produtos/serviços descritos no edital de licitação para ${cleanName}.`;
+
+      return {
+        modalidade,
+        orgao,
+        valor_estimado: 450000,
+        objeto,
+        prazo_proposta: "2026-06-25 09:00",
+        prazo_abertura: "2026-06-25 11:30",
+        exigencias_atestados: "Atestado de capacidade técnica comprovando execução continuada de serviços similares ao objeto.",
+        documentos_obrigatorios: ["Cartão CNPJ", "Regularidade Fiscal", "Balanço Patrimonial", "Certidão Negativa Trabalhista"]
+      };
+    };
+
+    // If text is empty or very short, fallback gracefully rather than returning error
+    if (!docText || !docText.trim() || docText.trim().length < 15) {
+      setUploadProgressStage("Analisando nome do arquivo e gerando sugestões...");
+      await new Promise(r => setTimeout(r, 600));
+
+      const isAtestadoTemplate = presetTextIndex === 2 || fileName.toLowerCase().includes('atestado');
+      let parsedJSON: any = {};
+      if (!isAtestadoTemplate) {
+        parsedJSON = extractFallbackDataFromFileName(fileName);
+      } else {
+        parsedJSON = {
+          nome_atestado: "Atestado de Capacidade Técnica",
+          orgao_emissor: "Emissor Identificado (Preencher)",
+          data_emissao: new Date().toISOString().split('T')[0],
+          observacoes: "Documento digitalizado - verifique o objeto no PDF",
+          itens: [
+            { descricao: "Execução de serviços/fornecimento compatível", quantidade: 1, unidade: "un" }
+          ]
+        };
+      }
+
+      setScannerResult({ ...parsedJSON, isCertificate: isAtestadoTemplate });
+      setEditableScannerResult({ ...parsedJSON });
+      setScannerError("Aviso: O texto extraído do arquivo PDF estava vazio ou ilegível (pode ser um documento digitalizado de imagem). Preparamos uma sugestão editável com base no nome do arquivo para você complementar!");
       setScannerIsProcessing(false);
+      setUploadProgressStage("");
       return;
     }
 
@@ -879,27 +948,57 @@ export default function Home() {
           return match && match[1] ? match[1].trim() : "";
         };
 
-        const modalidade = getMatch(/(Pregão Eletrônico|Concorrência|Tomada\s+de\s+Preços|Convite|Dispensa|Inexigibilidade)/i) || "Pregão Eletrônico";
+        const modalidade = getMatch(/(Pregão Eletrônico|Pregão|Concorrência|Tomada\s+de\s+Preços|Convite|Dispensa|Inexigibilidade)/i) || "Pregão Eletrônico";
         
-        let orgao = "Órgão Não Identificado";
-        const orgaoMatch = docText.match(/(?:Prefeitura Municipal|Tribunal|Ministério|Secretaria|Governo|Câmara|Conselho)[^\n]*/i);
+        let orgao = "Órgão Licitante de Destino";
+        const orgaoMatch = docText.match(/(?:Prefeitura\s+Municipal|Prefeitura|Tribunal|Ministério|Ministerio|Secretaria|Governo|Câmara|Camara|Conselho|Autarquia|Fundação|Fundacao|Consórcio|Consorcio)[^\n,.;]*/i);
         if (orgaoMatch) {
           orgao = orgaoMatch[0].trim();
         }
 
-        const objeto = getMatch(/Objeto[:\s\n]*([^\n]+)/i) || "Extratação local - verifique o objeto no documento.";
-        
-        const valorMatch = getMatch(/Valor Estimado[:\s\n]*(?:R\$)?\s*([\d\.,]+)/i) || getMatch(/(?:R\$)\s*([\d\.,]+)/i);
-        let valor_estimado = 0;
-        if(valorMatch) {
-          valor_estimado = parseFloat(valorMatch.replace(/\./g, '').replace(',', '.')) || 0;
+        let objeto = "Extratação local - verifique o objeto no documento.";
+        const objetoStartIndex = docText.search(/objeto[:\s\n\-]+/i);
+        if (objetoStartIndex !== -1) {
+          const subText = docText.slice(objetoStartIndex + 7, objetoStartIndex + 300);
+          const objetoLines = subText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+          let compiledObjeto = "";
+          for (const line of objetoLines) {
+            if (line.toUpperCase().includes("VALOR") || line.toUpperCase().includes("PRAZO") || line.toUpperCase().includes("EDITAL") || line.toUpperCase().includes("CLÁUSULA") || line.toUpperCase().includes("CONTRATAÇÃO DE") && compiledObjeto.length > 50) {
+              break;
+            }
+            compiledObjeto += " " + line;
+            if (compiledObjeto.length > 220) break;
+          }
+          if (compiledObjeto.trim()) {
+            objeto = compiledObjeto.trim();
+          }
         }
         
-        const prazo_propostaMatch = docText.match(/(\d{4}-\d{2}-\d{2}[\s\d:]*|\d{2}\/\d{2}\/\d{4}[\s\d:]*)/i);
-        const prazo_proposta = prazo_propostaMatch ? prazo_propostaMatch[0] : "2026-06-15 09:00";
+        let valor_estimado = 0;
+        const valorMatches = docText.match(/(?:valor.*?estimado|valor.*?total|estimado\s+em)[:\s]*R?\$?\s*([\d\.,]+)/i) || docText.match(/R\$\s*([\d\.,]+)/i);
+        if (valorMatches && valorMatches[1]) {
+          const cleanValue = valorMatches[1].replace(/\./g, "").replace(",", ".");
+          valor_estimado = parseFloat(cleanValue) || 0;
+        }
+        
+        let prazo_proposta = "2026-06-25 09:00";
+        const dateMatch = docText.match(/(\d{2}\/\d{2}\/\d{4}(?:\s*(?:ás|as|às)?\s*\d{2}[:h]\d{2})?)/i) || docText.match(/(\d{4}-?\d{2}-?\d{2}\s*\d{2}[:h]\d{2})/i);
+        if (dateMatch && dateMatch[1]) {
+          prazo_proposta = dateMatch[1].replace(/h/i, ":00");
+        }
         const prazo_abertura = prazo_proposta;
 
-        const exigencias_atestados = getMatch(/Atestado.*?comprovando.*?([^\n.]+)/i) || getMatch(/capacidade técnica.*?([^\n.]+)/i) || "Atestado de capacidade técnica compatível com o objeto.";
+        let exigencias_atestados = "Atestado de capacidade técnica compatível com o objeto.";
+        const atestadoStartIndex = docText.search(/(?:exige|atestado|capacidade\s+técnica|qualificação\s+técnica)[:\s\n\-]+/i);
+        if (atestadoStartIndex !== -1) {
+          const subText = docText.slice(atestadoStartIndex, atestadoStartIndex + 200).replace(/\n/g, " ");
+          const matchEx = subText.match(/(?:comprovando|comprove|fornecimento|execução)[:\s\n]*(.*?)(?:\.|;|$)/i);
+          if (matchEx && matchEx[1] && matchEx[1].length > 15) {
+            exigencias_atestados = "Atestado técnico de " + matchEx[1].trim();
+          } else {
+            exigencias_atestados = subText.substring(0, 100) + "...";
+          }
+        }
         
         const documentos_obrigatorios = ["Cartão CNPJ", "Regularidade Fiscal", "Balanço Patrimonial", "Certidão Negativa Trabalhista"];
         if (docText.toLowerCase().includes("anvisa")) documentos_obrigatorios.push("Certificado ANVISA");
@@ -1505,6 +1604,17 @@ export default function Home() {
                 </div>
               ) : !scannerResult ? (
                 <div className="space-y-8">
+                  {scannerError && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-sm font-semibold shadow-xs flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-bold">Aviso do Extrator</p>
+                        <p className="text-xs font-medium text-amber-800/95 mt-1">{scannerError}</p>
+                      </div>
+                      <button onClick={() => setScannerError('')} className="text-amber-500 hover:text-amber-700 font-medium text-lg leading-none">&times;</button>
+                    </div>
+                  )}
+
                   {/* Real File Upload Drag & Drop Box */}
                   <div 
                     onClick={() => document.getElementById('edital-file-upload')?.click()}
@@ -1664,6 +1774,14 @@ export default function Home() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
                   {/* Resumo do Edital Fields - STATE BOUND AND EDITABLE */}
                   <div className="bg-white rounded-xl border p-6 shadow-sm" style={{ borderColor: panelBorderColor }}>
+                     {scannerError && (
+                       <div className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs font-semibold flex items-start gap-2">
+                         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                         <span className="flex-1 leading-relaxed">
+                           <strong>Aviso:</strong> {scannerError}
+                         </span>
+                       </div>
+                     )}
                      <div className="flex justify-between items-center mb-6">
                         <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2"><CheckSquare className="w-4 h-4 text-emerald-600" /> Resumo do Edital Estruturado (Editável)</h3>
                         <button 
