@@ -1002,35 +1002,33 @@ export default function Home() {
         await handleTriggerTenderScanner(null, text, file.name);
       };
       reader.readAsText(file);
-    } else {
-      // Create a rich dynamic context based on files
-      const fileLower = file.name.toLowerCase();
-      let promptTextForAI = "";
-      
-      if (fileLower.includes("saude") || fileLower.includes("uti") || fileLower.includes("hospital")) {
-        promptTextForAI = `MINISTÉRIO DA SAÚDE - EXTRATO DE EDITAL
-PE 45/2023. Objeto: Aquisição de equipamentos hospitalares para ampliação de rede intensiva UTI integrada. Exige atestado comprovando o fornecimento continuado de no mínimo 30 monitores cardíacos multiparamétricos de alta complexidade instalado.
-Valor Estimado: R$ 2.450.000,00. Prazo limite para envio de propostas: 2026-10-09 09:00. Sessão pública de abertura e lances: 2026-10-09 14:30.
-Documentos requeridos para habilitação: Cartão CNPJ, Balanço de Encerramento Contábil, Regularidade com a Receita Federal e Certificado de Conformidade Técnica da Anvisa.`;
-      } else if (fileLower.includes("prefeitura") || fileLower.includes("obra") || fileLower.includes("impermeab")) {
-        promptTextForAI = `PREFEITURA DO MUNICÍPIO DE SÃO PAULO - SECRETARIA DE INFRAESTRUTURA
-Edital de Concorrência do tipo Menor Preço nº 12/2023. Objeto: Contratação de serviços de engenharia civil para impermeabilização de laje interna, restauração física estrutural e pintura da fachada de blocos de ensino municipal.
-Valor Estimado Total Máximo ACEITO: R$ 850.000,00. Data limite de acolhimento de propostas de preço: 2026-10-15 14:00.
-Qualificação Técnica específica: Atestados técnicos demonstrando impermeabilização ativa com manta asfáltica de no mínimo 500 metros quadrados (500m2).
-Habitação legal: Licença de conselho regional CREA, comprovante de CNPJ ativo, certidão de falências e balanço.`;
-      } else {
-        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ").replace(/-/g, " ");
-        promptTextForAI = `EDITAL DE LICITAÇÃO PÚBLICA NACIONAL
-Órgão Licitante: Tribunal de Contas (TCU) ou Prefeitura Municipal de ${cleanName.substring(0, 15)}
-Objeto: Contratação de serviços continuados para ${cleanName}, com fornecimento de mão de obra qualificada e tecnologia.
-Valor Estimado: R$ ${Math.floor(Math.random() * 1500000 + 400000)},00.
-Prazo Limite para Proposta: 2026-08-12 09:00. Prazo de Abertura: 2026-08-12 11:00.
-Documentos Obrigatórios Requeridos: Cartão de Inscrição no CNPJ, Certidão de Regularidade Fiscal Unificada, Balanço Comercial e Atestado Técnico compatível.
-Exigências de Atestados: Comprovar expertise em escopo correlacionado.`;
+    } else if (file.name.toLowerCase().endsWith('.pdf')) {
+      setScannerIsProcessing(true);
+      setUploadProgressStage("Carregando arquivo PDF...");
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch("/api/parse-pdf", {
+          method: "POST",
+          body: formData,
+        });
+        if (!response.ok) {
+          throw new Error("Erro ao ler o arquivo PDF");
+        }
+        const data = await response.json();
+        const text = data.text;
+        setRawScannerText(text);
+        
+        // Pass text directly to Gemini
+        await handleTriggerTenderScanner(null, text, file.name);
+      } catch (error: any) {
+        setScannerError(`Erro ao processar PDF: ${error.message}`);
+        setScannerIsProcessing(false);
+      } finally {
+        setUploadProgressStage("");
       }
-
-      setRawScannerText(promptTextForAI);
-      await handleTriggerTenderScanner(null, promptTextForAI, file.name);
+    } else {
+      setScannerError("Formato de arquivo não suportado. Use .pdf ou .txt.");
     }
   };
 
@@ -1443,7 +1441,7 @@ Exigências de Atestados: Comprovar expertise em escopo correlacionado.`;
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Search className="text-emerald-600 w-6 h-6" /> Módulo do Edital</h2>
                   <p className="text-sm text-slate-500 font-medium">Extração de dados via IA, acompanhamento e cadastro de novos editais do computador</p>
                 </div>
-                <button onClick={() => { setScannerResult(null); setEditableScannerResult(null); setRawScannerText(''); }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                <button onClick={() => { setScannerResult(null); setEditableScannerResult(null); setRawScannerText(''); document.getElementById('edital-file-upload')?.click(); }} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
                   <Plus className="w-4 h-4" /> Novo Edital (PDF)
                 </button>
               </div>
