@@ -554,29 +554,63 @@ export default function Home() {
     setIsLoggedIn(false);
   };
 
-  // Re-login trigger
-  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const login = (formData.get('login') as string || '').trim();
     const password = (formData.get('password') as string || '').trim();
     
-    const user = usuarios.find(u => 
-      (u.email && u.email.toLowerCase().trim() === login.toLowerCase().trim()) ||
-      (u.nome && u.nome.toLowerCase().trim() === login.toLowerCase().trim()) ||
-      (login.toLowerCase().trim() === 'admin' && (u.email === 'admin' || u.nome === 'Administrador Geral'))
-    );
-    
-    if (!user) {
-      alert('Usuário não encontrado. Solicite acesso ao Administrador.');
+    // Admin override
+    if (login.toLowerCase() === 'admin' && password === 'Cjl@j2326082110') {
+      const adminUser: PerfilUsuario = {
+        email: 'admin',
+        nome: 'Administrador Geral',
+        senha: '',
+        perfilId: 'perfil-admin',
+        chave_empresa: 'ALL'
+      };
+      finishLogin(adminUser);
       return;
     }
-    
-    if (user.senha && user.senha.trim() !== password.trim()) {
-      alert('Senha incorreta.');
+
+    let foundUser: PerfilUsuario | undefined;
+
+    // Supabase native check
+    const client = getSupabaseClient();
+    if (client && supabaseMode === 'connected') {
+      const { data, error } = await client
+        .from('usuarios')
+        .select('*')
+        .or(`email.ilike.${login},nome.ilike.${login}`)
+        .eq('senha', password)
+        .single();
+        
+      if (data && !error) {
+        // Map database fields to application state interface
+        foundUser = {
+          ...data,
+          perfilId: (data as any).perfil_id || (data as any).perfilId
+        } as PerfilUsuario;
+      }
+    } else {
+      // Offline / state fallback check
+      const userMatch = usuarios.find(u => 
+        ((u.email && u.email.toLowerCase().trim() === login.toLowerCase()) || 
+         (u.nome && u.nome.toLowerCase().trim() === login.toLowerCase())) &&
+        u.senha === password
+      );
+      if (userMatch) foundUser = userMatch;
+    }
+
+    if (!foundUser) {
+      alert('Usuário não encontrado ou senha incorreta.');
       return;
     }
-    
+
+    finishLogin(foundUser);
+  };
+
+  const finishLogin = (user: PerfilUsuario) => {
     setCurrentUser(user);
     localStorage.setItem('proprocure_logged_user', JSON.stringify(user));
     if (user.email.toLowerCase().trim() === 'admin') {
@@ -591,10 +625,10 @@ export default function Home() {
       const profile = perfis.find(p => p.id === user.perfilId);
       if (profile) {
         if (profile.dashboard) setActiveTab('dashboard');
-        else if (profile.agenda) setActiveTab('dashboard');
-        else if (profile.scanner) setActiveTab('dashboard');
-        else if (profile.atestados) setActiveTab('dashboard');
-        else if (profile.empresas) setActiveTab('dashboard');
+        else if (profile.agenda) setActiveTab('agenda');
+        else if (profile.scanner) setActiveTab('scanner');
+        else if (profile.atestados) setActiveTab('atestados');
+        else if (profile.empresas) setActiveTab('empresas');
         else if (profile.usuarios_perfis) setActiveTab('usuarios');
         else if (profile.ajustes) setActiveTab('ajustes');
       } else {
@@ -606,6 +640,7 @@ export default function Home() {
     setIsLoggedIn(true);
     setMultiSessionAlert(false);
     setSecondsRemaining(timeoutMinutes * 60);
+
     // Refresh self session
     const freshToken = generateGuid();
     setSessionToken(freshToken);
@@ -823,6 +858,7 @@ export default function Home() {
   };
 
   const handleToggleChecklistItem = async (bidId: string, itemId: string) => {
+    const originalBids = [...licitacoes];
     const updated = licitacoes.map(b => {
       if (b.id === bidId) {
         return {
@@ -835,11 +871,20 @@ export default function Home() {
       }
       return b;
     });
+    
+    // Optimistic update
     setLicitacoes(updated);
+    
     const updatedBid = updated.find(b => b.id === bidId);
     if (updatedBid) {
        const supabase = getSupabaseClient();
-       if (supabase) await supabase.from('licitacoes').update({ checklist_itens: updatedBid.checklist_itens }).eq('id', bidId);
+       if (supabase) {
+         const { error } = await supabase.from('licitacoes').update({ checklist_itens: updatedBid.checklist_itens }).eq('id', bidId);
+         if (error) {
+           alert("Erro ao atualizar checklist: " + error.message);
+           setLicitacoes(originalBids);
+         }
+       }
     }
   };
 
@@ -1322,10 +1367,10 @@ export default function Home() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center p-4 transition-colors" style={{ backgroundColor: primaryColor }}>
-        <div className="w-full max-w-md bg-white rounded-xl p-8 shadow-2xl animate-fade-in">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 relative">
-              <Image src="/buygov_logo.png" alt="BuyGov Logo" fill className="object-contain" />
+        <div className="w-full max-w-md bg-white rounded-xl p-8 shadow-2xl animate-fade-in" suppressHydrationWarning>
+          <div className="flex justify-center mb-6" suppressHydrationWarning>
+            <div className="w-16 h-16 relative flex items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+              <Landmark className="w-8 h-8" />
             </div>
           </div>
 
@@ -1346,8 +1391,8 @@ export default function Home() {
             </div>
           )}
 
-          <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4">
-            <div>
+          <form onSubmit={handleLoginSubmit} className="mt-6 space-y-4" suppressHydrationWarning>
+            <div suppressHydrationWarning>
               <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">E-mail ou Login</label>
               <input
                 type="text"
@@ -1356,10 +1401,11 @@ export default function Home() {
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                 placeholder="exemplo@empresa.com.br ou 'admin'"
                 defaultValue={currentUser?.email || ''}
+                suppressHydrationWarning
               />
             </div>
 
-            <div>
+            <div suppressHydrationWarning>
               <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">Senha</label>
               <input
                 type="password"
@@ -1367,6 +1413,7 @@ export default function Home() {
                 required
                 placeholder="Sua senha corporativa"
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                suppressHydrationWarning
               />
             </div>
 
@@ -1433,8 +1480,8 @@ export default function Home() {
       <aside className="hidden md:flex min-w-[260px] max-w-[260px] flex-col relative z-40 border-r shadow-sm transition-colors" style={{ backgroundColor: panelBgColor === '#FFFFFF' ? '#0F172A' : panelBgColor, borderColor: panelBorderColor }}>
         {/* Profile Card */}
         <div className="flex flex-col items-center pt-8 pb-6 border-b border-white/10">
-          <div className="w-16 h-16 relative mb-3 bg-white rounded-xl shadow p-2 flex items-center justify-center">
-            <div className="w-full h-full relative"><Image src="/buygov_logo.png" alt="BuyGov" fill className="object-contain" /></div>
+          <div className="w-16 h-16 relative mb-3 bg-white rounded-xl shadow p-2 flex items-center justify-center text-emerald-800">
+            <Landmark className="w-8 h-8" />
           </div>
           <h2 className="text-lg font-bold text-white tracking-tight">BuyGov</h2>
           <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mt-1">{currentCompany?.nome || activeCompanyKey}</p>
@@ -2411,6 +2458,37 @@ export default function Home() {
                        <input type="text" placeholder="URL do Supabase" value={supabaseUrl} onChange={e=>setSupabaseUrl(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
                        <input type="password" placeholder="Chave Anônima" value={supabaseKey} onChange={e=>setSupabaseKey(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
                     </div>
+                    <button
+                      onClick={async () => {
+                         const { getSupabase } = await import('@/lib/supabase');
+                         const client = getSupabase(supabaseUrl, supabaseKey);
+                         if (client) {
+                           await loadSupabaseData(client);
+                           localStorage.setItem('proprocure_supabase_url', supabaseUrl);
+                           localStorage.setItem('proprocure_supabase_key', supabaseKey);
+                           localStorage.setItem('proprocure_supabase_mode', 'connected');
+                           setSupabaseMode('connected');
+                           alert("Banco de dados sincronizado e conectado com sucesso!");
+                         } else {
+                           alert("Erro: Credenciais inválidas ou URL falhou.");
+                         }
+                      }}
+                      className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded shadow transition-all"
+                    >
+                      <Database className="w-4 h-4 inline-block mr-2" />
+                      Conectar e Sincronizar Banco
+                    </button>
+                    
+                    {syncLogs.length > 0 && (
+                      <div className="mt-4 bg-slate-900 rounded border border-slate-700 p-4">
+                         <h4 className="text-xs text-slate-400 mb-2">Logs de Sincronização</h4>
+                         <div className="space-y-1">
+                           {syncLogs.slice(0, 3).map((log, idx) => (
+                             <div key={idx} className="text-[10px] text-emerald-400 font-mono">{log}</div>
+                           ))}
+                         </div>
+                      </div>
+                    )}
                  </div>
                  <div>
                     <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6 flex items-center gap-2"><Database className="w-4 h-4 text-indigo-600" /> Histórico de Migrations SQL do Banco</h3>
