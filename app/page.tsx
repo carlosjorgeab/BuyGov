@@ -1407,7 +1407,7 @@ export default function Home() {
           
           {/* DASHBOARD */}
           {activeTab === 'dashboard' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="dashboard" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800">Visão Geral</h2>
@@ -1507,7 +1507,7 @@ export default function Home() {
 
           {/* AGENDA E PRAZOS */}
           {activeTab === 'agenda' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="agenda" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Calendar className="text-emerald-600" /> Agenda de Prazos Críticos</h2>
@@ -1624,7 +1624,7 @@ export default function Home() {
           )}
 
           {activeTab === 'scanner' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="scanner" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Search className="text-emerald-600 w-6 h-6" /> Módulo do Edital</h2>
@@ -2051,7 +2051,7 @@ export default function Home() {
 
           {/* ATESTADOS */}
           {activeTab === 'atestados' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="atestados" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                  <div>
                    <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Shield className="text-emerald-600" /> Controle de Atestados Técnicos (Acervo)</h2>
@@ -2137,7 +2137,7 @@ export default function Home() {
           )}
           {/* EMPRESAS */}
           {activeTab === 'empresas' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="empresas" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Building className="text-emerald-600" /> Gestão de Empresas e Filiais</h2>
                  <button onClick={() => setIsAddingCompany(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
@@ -2158,7 +2158,7 @@ export default function Home() {
 
           {/* USUÁRIOS */}
           {activeTab === 'usuarios' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="usuarios" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Users className="text-emerald-600" /> Cadastro de Usuários</h2>
                  <button onClick={() => setIsAddingUser(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
@@ -2193,7 +2193,7 @@ export default function Home() {
 
           {/* DICIONARIO */}
           {activeTab === 'dicionario' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="ajustes" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                  <div>
                    <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Database className="text-emerald-600" /> Dicionário Base de IA</h2>
@@ -2242,7 +2242,7 @@ export default function Home() {
 
           {/* AJUSTES */}
           {activeTab === 'ajustes' && (
-            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <motion.div key="dicionario" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
               <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
                  <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Settings className="text-emerald-600" /> Ajustes de Sistema</h2>
               </div>
