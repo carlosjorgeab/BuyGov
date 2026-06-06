@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 
 function extractPrintableAscii(buffer: Buffer): string {
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
     let parsedText = "";
     
     try {
-      // Dynamic import to bypass static Next.js ESM default export resolution check
+      // Dynamic import to bypass static Next.js ESM default export resolution check using the safe path
       // @ts-ignore
       const pdfModule = await import("pdf-parse/lib/pdf-parse.js");
       const anyPdfModule = pdfModule as any;
