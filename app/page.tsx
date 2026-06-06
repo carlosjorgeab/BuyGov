@@ -490,7 +490,11 @@ export default function Home() {
     const login = inputs[0]?.value.trim();
     const password = inputs[1]?.value.trim();
     
-    const user = usuarios.find(u => u.email.toLowerCase().trim() === login.toLowerCase().trim());
+    const user = usuarios.find(u => 
+      (u.email && u.email.toLowerCase().trim() === login.toLowerCase().trim()) ||
+      (u.nome && u.nome.toLowerCase().trim() === login.toLowerCase().trim()) ||
+      (u.email === 'admin' && login.toLowerCase().trim() === 'admin')
+    );
     
     if (!user) {
       alert('Usuário não encontrado. Solicite acesso ao Administrador.');
@@ -930,181 +934,23 @@ export default function Home() {
     }
 
     try {
-      setUploadProgressStage("Analisando e extraindo dados do documento localmente...");
-      await new Promise(r => setTimeout(r, 800)); // Simulando tempo de processamento local
-
+      setUploadProgressStage("Analisando dados via Inteligência Artificial...");
+      
       const isAtestadoTemplate = presetTextIndex === 2 || fileName.toLowerCase().includes('atestado');
+      const action = isAtestadoTemplate ? 'parse_certificate' : 'parse_tender';
 
       let parsedJSON: any = {};
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, text: docText })
+      });
 
-      if (!isAtestadoTemplate) {
-        let numero_edital = "";
-        let numero_processo = "";
-        let orgao = "Órgão Licitante de Destino";
-        let objeto = "Extratação local - verifique o objeto no documento.";
-        let valor_estimado = 0;
-        let prazo_proposta = "2026-06-25 09:00";
-        let prazo_abertura = "2026-06-25 09:00";
-
-        if (presetTextIndex === 0) {
-          numero_edital = "45/2023";
-          numero_processo = "MS-10492/2023";
-          orgao = "Ministério da Saúde (MS)";
-          objeto = "PE 45/2023. Objeto: Aquisição de equipamentos hospitalares para ampliação de rede intensiva UTI integrada. Exige atestado comprovando o fornecimento continuado de no mínimo 30 monitores cardíacos multiparamétricos de alta complexidade instalado.";
-          valor_estimado = 2450000.00;
-          prazo_proposta = "2026-10-09 14:00";
-          prazo_abertura = "2026-10-09 14:30";
-        } else if (presetTextIndex === 1) {
-          numero_edital = "12/2023";
-          numero_processo = "PMSP-10023/2023";
-          orgao = "Prefeitura do Município de São Paulo";
-          objeto = "Contratação de serviços de engenharia civil para impermeabilização de laje interna, restauração física estrutural e pintura da fachada de blocos de ensino municipal.";
-          valor_estimado = 850000.00;
-          prazo_proposta = "2026-10-15 14:00";
-          prazo_abertura = "2026-10-15 14:00";
-        } else {
-          // Robust Custom Text Parse Strategy
-          const getMatch = (regex: RegExp) => {
-            const match = docText.match(regex);
-            return match && match[1] ? match[1].trim() : "";
-          };
-
-          // 1. Número do Edital Regexes
-          const editalRegexes = [
-            /(?:Edital|Pregão|Pregao|Tomada|Concorrência|Concorrencia|Inexigibilidade|Dispensa)\s+(?:de\s+)?(?:n[º°o]?\.?\s*de\s*edital|de\s+n[º°o]?\.?\s*|n[º°o]?\.?\s*|n[°ºo]?\s*)?([\d\w./\-]+)/i,
-            /(?:PE|CC|TP|DL|IL|CP|PR)\s*(?:n[º°o]?\.?\s*)?([\d\w./\-]+)/i,
-            /Edital\s+(?:n[º°o]?\.?\s*)?([\d\w./\-]+)/i,
-            /n[º°o]?\.?\s*([\d\w./\-]+)/i
-          ];
-          for (const regex of editalRegexes) {
-            const match = docText.match(regex);
-            if (match && match[1] && match[1].length > 2) {
-              numero_edital = match[1].trim();
-              break;
-            }
-          }
-          if (numero_edital && numero_edital.endsWith('.')) {
-            numero_edital = numero_edital.slice(0, -1);
-          }
-
-          // 2. Número do Processo Regexes
-          const processoRegexes = [
-            /(?:Processo|Proc\.?|Protocolo|Prot\.?|Processo\s+Administrativo|Processo\s+n[º°o]?|Proc\s+n[º°o]?)\s+(?:n[º°o]?\.?\s*de\s*processo|de\s+n[º°o]?\.?\s*|n[º°o]?\.?\s*|n[°ºo]?\s*)?([\d\w./\-]+)/i,
-            /Processo\s+Administrativo\s*(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
-            /Processo\s+(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
-            /Proc\.\s+(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
-            /Processo\s*:\s*([\d\w./\-]+)/i
-          ];
-          for (const regex of processoRegexes) {
-            const match = docText.match(regex);
-            if (match && match[1] && match[1].length > 2) {
-              numero_processo = match[1].trim();
-              break;
-            }
-          }
-          if (numero_processo && numero_processo.endsWith('.')) {
-            numero_processo = numero_processo.slice(0, -1);
-          }
-
-          // 3. Órgão Contratante - Geralmente se encontra no início do arquivo como Nome Principal
-          const lines = docText.split("\n").map(l => l.trim()).filter(l => l.length > 5);
-          const orgaoKeywords = ["PREFEITURA", "MUNICÍPIO", "MUNICIPIO", "ESTADO", "SECRETARIA", "MINISTÉRIO", "MINISTERIO", "TRIBUNAL", "FEDERAL", "CONSELHO", "CÂMARA", "CAMARA", "CENTRO", "DEPARTAMENTO", "FUNDO", "FUNDAÇÃO", "FUNDACAO", "SUPERINTENDÊNCIA", "SUPERINTENDENCIA", "GOVERNO", "COMPANHIA", "SANEPAR", "SABESP", "PRODESP", "MINISTERIO DA SAUDE"];
-          let foundOrgaoFromStart = "";
-          for (let idx = 0; idx < Math.min(lines.length, 6); idx++) {
-            const uppercaseLine = lines[idx].toUpperCase();
-            if (orgaoKeywords.some(keyword => uppercaseLine.includes(keyword))) {
-              foundOrgaoFromStart = lines[idx];
-              break;
-            }
-          }
-
-          const orgaoMatch = docText.match(/(?:Prefeitura\s+Municipal|Prefeitura|Tribunal|Ministério|Ministerio|Secretaria|Governo|Câmara|Camara|Conselho|Autarquia|Fundação|Fundacao|Consórcio|Consorcio)[^\n,.;]*/i);
-          if (foundOrgaoFromStart) {
-            orgao = foundOrgaoFromStart.trim();
-          } else if (orgaoMatch) {
-            orgao = orgaoMatch[0].trim();
-          }
-
-          // 4. Objeto
-          const objetoStartIndex = docText.search(/objeto[:\s\n\-]+/i);
-          if (objetoStartIndex !== -1) {
-            const subText = docText.slice(objetoStartIndex + 7, objetoStartIndex + 300);
-            const objetoLines = subText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-            let compiledObjeto = "";
-            for (const line of objetoLines) {
-              if (line.toUpperCase().includes("VALOR") || line.toUpperCase().includes("PRAZO") || line.toUpperCase().includes("EDITAL") || line.toUpperCase().includes("CLÁUSULA") || line.toUpperCase().includes("CONTRATAÇÃO DE") && compiledObjeto.length > 50) {
-                break;
-              }
-              compiledObjeto += " " + line;
-              if (compiledObjeto.length > 220) break;
-            }
-            if (compiledObjeto.trim()) {
-              objeto = compiledObjeto.trim();
-            }
-          }
-
-          // 5. Valor Estimado
-          const valorMatches = docText.match(/(?:valor.*?estimado|valor.*?total|estimado\s+em)[:\s]*R?\$?\s*([\d\.,]+)/i) || docText.match(/R\$\s*([\d\.,]+)/i);
-          if (valorMatches && valorMatches[1]) {
-            const cleanValue = valorMatches[1].replace(/\./g, "").replace(",", ".");
-            valor_estimado = parseFloat(cleanValue) || 0;
-          }
-
-          // 6. Data da Sessão / Abertura
-          const dateMatch = docText.match(/(\d{2}\/\d{2}\/\d{4}(?:\s*(?:ás|as|às)?\s*\d{2}[:h]\d{2})?)/i) || docText.match(/(\d{4}-?\d{2}-?\d{2}\s*\d{2}[:h]\d{2})/i);
-          if (dateMatch && dateMatch[1]) {
-            prazo_proposta = dateMatch[1].replace(/h/i, ":00");
-          }
-          prazo_abertura = prazo_proposta;
-        }
-
-        const getMatch = (regex: RegExp) => {
-          const match = docText.match(regex);
-          return match ? match[1] : null;
-        };
-
-        const modalidade = getMatch(/(Pregão Eletrônico|Pregão|Concorrência|Tomada\s+de\s+Preços|Convite|Dispensa|Inexigibilidade)/i) || "Pregão Eletrônico";
-        
-        let exigencias_atestados = "Atestado de capacidade técnica compatível com o objeto.";
-        const atestadoStartIndex = docText.search(/(?:exige|atestado|capacidade\s+técnica|qualificação\s+técnica)[:\s\n\-]+/i);
-        if (atestadoStartIndex !== -1) {
-          const subText = docText.slice(atestadoStartIndex, atestadoStartIndex + 200).replace(/\n/g, " ");
-          const matchEx = subText.match(/(?:comprovando|comprove|fornecimento|execução)[:\s\n]*(.*?)(?:\.|;|$)/i);
-          if (matchEx && matchEx[1] && matchEx[1].length > 15) {
-            exigencias_atestados = "Atestado técnico de " + matchEx[1].trim();
-          } else {
-            exigencias_atestados = subText.substring(0, 100) + "...";
-          }
-        }
-
-        const documentos_obrigatorios = ["Cartão CNPJ", "Regularidade Fiscal", "Balanço Patrimonial", "Certidão Negativa Trabalhista"];
-        if (docText.toLowerCase().includes("anvisa")) documentos_obrigatorios.push("Certificado ANVISA");
-        if (docText.toLowerCase().includes("crea")) documentos_obrigatorios.push("Registro no CREA");
-        if (docText.toLowerCase().includes("cau")) documentos_obrigatorios.push("Registro no CAU");
-
-        parsedJSON = {
-          modalidade,
-          orgao,
-          valor_estimado,
-          objeto,
-          prazo_proposta,
-          prazo_abertura,
-          exigencias_atestados,
-          documentos_obrigatorios,
-          numero_edital,
-          numero_processo
-        };
-      } else {
-        parsedJSON = {
-          nome_atestado: "Atestado de Fornecimento Extraído Localmente",
-          orgao_emissor: "Emissor Identificado",
-          data_emissao: new Date().toISOString().split('T')[0],
-          observacoes: "Processamento via extração de texto local",
-          itens: [
-            { descricao: "Fornecimento de equipamentos", quantidade: 10, unidade: "un" }
-          ]
-        };
+      if (!response.ok) {
+        throw new Error("Erro na comunicação com a API de extração");
       }
+
+      parsedJSON = await response.json();
 
       setScannerResult({ ...parsedJSON, isCertificate: isAtestadoTemplate });
       setEditableScannerResult({ ...parsedJSON });
@@ -1184,7 +1030,8 @@ export default function Home() {
       })),
       created_at: new Date().toISOString().split('T')[0],
       numero_edital: dataToSave.numero_edital || "",
-      numero_processo: dataToSave.numero_processo || ""
+      numero_processo: dataToSave.numero_processo || "",
+      resumo_edital: dataToSave.resumo_edital || ""
     };
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
@@ -1959,6 +1806,16 @@ export default function Home() {
                            className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" 
                          />
                        </div>
+                       <div>
+                         <label className="block text-xs font-bold text-emerald-600 uppercase tracking-wider mb-1">Resumo Executivo do Edital (AI)</label>
+                         <textarea 
+                           rows={4} 
+                           value={editableScannerResult?.resumo_edital || ''} 
+                           onChange={(e) => setEditableScannerResult({ ...editableScannerResult, resumo_edital: e.target.value })}
+                           className="w-full border border-emerald-200 rounded px-3 py-2 text-sm bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
+                           placeholder="Resumo das informações chaves extraídas pela inteligência artificial..."
+                         />
+                       </div>
                        <div className="grid grid-cols-2 gap-4">
                          <div>
                            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Modalidade</label>
@@ -2460,6 +2317,13 @@ export default function Home() {
                       <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Objeto da Contratação</span>
                       <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border leading-relaxed whitespace-pre-wrap">{selectedBidDetail.objeto}</p>
                     </div>
+
+                    {selectedBidDetail.resumo_edital && (
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Resumo do Edital (Gerado por Inteligência Artificial)</span>
+                        <p className="text-xs text-emerald-800 bg-emerald-50 p-2.5 rounded border border-emerald-100 leading-relaxed whitespace-pre-wrap font-medium">{selectedBidDetail.resumo_edital}</p>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-4">
                       <div>

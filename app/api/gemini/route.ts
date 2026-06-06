@@ -23,20 +23,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "parse_tender") {
-      const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada.
+      const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada. Procure por todos os termos e variações possíveis de uma licitação para encontrar as informações corretas.
 Texto do Edital:
 "${text}"
 
 Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
 {
-  "modalidade": "Pregão Eletrônico, Concorrência ou Tomada de Preços",
-  "objeto": "Resumo claro e conciso de qual o objeto da licitação",
-  "orgao": "Nome do órgão licitante (ex: Ministério da Saúde, Prefeitura de SP)",
-  "valor_estimado": 1250000.00,  // Adicione apenas o número ou nulo se não houver
-  "prazo_proposta": "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm (estime com base no texto em 2026)",
-  "prazo_abertura": "data e hora da sessão pública no formato YYYY-MM-DD HH:mm (estime com base no texto em 2026)",
+  "numero_processo": "Número ou código do processo administrativo se encontrado (ex: 23154.00012/2023-11)",
+  "numero_edital": "O número de identificação do pregão/edital se aplicável (ex: 45/2023)",
+  "modalidade": "Pregão Eletrônico, Concorrência, Tomada de Preços, Inexigibilidade, Dispensa, ou outro",
+  "orgao": "Nome completo do órgão licitante / contratante",
+  "objeto": "Título ou objeto comercial exato da licitação",
+  "resumo_edital": "Resumo analítico focado e objetivo do edital (o que estão comprando, quantidades, local de entrega, se há cotas, etc)",
+  "valor_estimado": 1250000.00,  // Valor numérico estimado ou teto, coloque nulo se não encontrar
+  "prazo_proposta": "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
+  "prazo_abertura": "data e hora da sessão no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
   "documentos_obrigatorios": ["Documento 1", "Documento 2", "Certidão X"], // de habilitação
-  "exigencias_atestados": "Frase resumida das exigências específicas de atestados de capacidade técnica do edital"
+  "exigencias_atestados": "Frase resumida das exigências qualitativas ou quantitativas de atestados de capacidade técnica do edital"
 }`;
 
       const response = await ai.models.generateContent({

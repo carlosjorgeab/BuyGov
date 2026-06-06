@@ -29,6 +29,7 @@ export interface Licitacao {
   created_at: string;
   numero_edital?: string;
   numero_processo?: string;
+  resumo_edital?: string;
 }
 
 export interface AtestadoItem {
