@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
 function extractPrintableAscii(buffer: Buffer): string {
-  let result = "";
-  for (let i = 0; i < buffer.length; i++) {
-    const char = buffer[i];
-    // ASCII printable characters (32 to 126) plus line breaks
-    if ((char >= 32 && char <= 126) || char === 10 || char === 13) {
-      result += String.fromCharCode(char);
+  try {
+    let result = "";
+    for (let i = 0; i < buffer.length; i++) {
+      const char = buffer[i];
+      // ASCII printable characters (32 to 126) plus line breaks
+      if ((char >= 32 && char <= 126) || char === 10 || char === 13) {
+        result += String.fromCharCode(char);
+      }
     }
+    // Sanitize from binary brackets and return cleaned string
+    return result
+      .replace(/[^a-zA-Z0-9\sÁÉÍÓÚáéíóúâêîôûÂÊÎÔÛãõÃÕçÇ.,/:\-()]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch (err) {
+    return "";
   }
-  // Sanitize from binary brackets and return cleaned string
-  return result
-    .replace(/[^a-zA-Z0-9\sÁÉÍÓÚáéíóúâêîôûÂÊÎÔÛãõÃÕçÇ.,/:\-()]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export async function POST(req: NextRequest) {

@@ -61,7 +61,8 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
       });
 
       const resultText = response.text || "{}";
-      return NextResponse.json(JSON.parse(resultText));
+      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return NextResponse.json(JSON.parse(cleanJson));
     }
 
     if (action === "parse_certificate") {
@@ -96,7 +97,8 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
       });
 
       const resultText = response.text || "{}";
-      return NextResponse.json(JSON.parse(resultText));
+      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return NextResponse.json(JSON.parse(cleanJson));
     }
 
     if (action === "analyze_compatibility") {
@@ -143,7 +145,8 @@ Retorne rigorosamente no formato JSON com os seguintes campos:
       });
 
       const resultText = response.text || "{}";
-      return NextResponse.json(JSON.parse(resultText));
+      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      return NextResponse.json(JSON.parse(cleanJson));
     }
 
     return NextResponse.json({ error: "Ação inválida ou não especificada." }, { status: 400 });
