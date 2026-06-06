@@ -43,8 +43,14 @@ CREATE TABLE IF NOT EXISTS public.licitacoes (
     exigencias_atestados TEXT DEFAULT '',
     status VARCHAR(50) DEFAULT 'Em Análise' CHECK (status IN ('Em Análise', 'Em Preparação', 'Submetido', 'Ganho', 'Descartado')),
     checklist_itens JSONB DEFAULT '[]'::JSONB, -- e.g. [{"id": "1", "label": "CND Federal", "checked": true}]
+    numero_edital VARCHAR(100),
+    numero_processo VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Últimas alterações: Adicionar colunas caso já existam em bancos migrados
+ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_edital VARCHAR(100);
+ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_processo VARCHAR(100);
 
 CREATE INDEX IF NOT EXISTS idx_licitacoes_chave_empresa ON public.licitacoes(chave_empresa);
 CREATE INDEX IF NOT EXISTS idx_licitacoes_status ON public.licitacoes(status);
@@ -137,7 +143,7 @@ VALUES
 ON CONFLICT (chave_empresa) DO NOTHING;
 
 -- Basic Demo Tenders
-INSERT INTO public.licitacoes (id, chave_empresa, modalidade, objeto, orgao, valor_estimado, prazo_proposta, prazo_abertura, documentos_obrigatorios, exigencias_atestados, status, checklist_itens)
+INSERT INTO public.licitacoes (id, chave_empresa, modalidade, objeto, orgao, valor_estimado, prazo_proposta, prazo_abertura, documentos_obrigatorios, exigencias_atestados, status, checklist_itens, numero_edital, numero_processo)
 VALUES 
 (
     'e1111111-1111-1111-1111-111111111111', 
@@ -151,7 +157,9 @@ VALUES
     ARRAY['CNPJ', 'Certidão de Falência', 'Balanço Patrimonial', 'Atestado de Capacidade Técnica de Equipamentos Médicos'],
     'Exige atestado comprovando o fornecimento continuado de no mínimo 30 monitores cardíacos multiparamétricos de alta complexidade em ambiente de terapia intensiva.',
     'Em Preparação',
-    '[{"id": "c1", "label": "Certidão Federal Negativa", "checked": true}, {"id": "c2", "label": "Balanço Patrimonial", "checked": false}]'::JSONB
+    '[{"id": "c1", "label": "Certidão Federal Negativa", "checked": true}, {"id": "c2", "label": "Balanço Patrimonial", "checked": false}]'::JSONB,
+    '45/2023',
+    'MS-10492/2023'
 ),
 (
     'e2222222-2222-2222-2222-222222222222', 
@@ -165,7 +173,9 @@ VALUES
     ARRAY['CNPJ', 'Certidão do CREA', 'Atestado de Reforma Predial'],
     'Necessário comprovar execução de serviços de engenharia civil que incluam no mínimo 500m2 de impermeabilização de laje ou coberturas prediais com manta asfáltica.',
     'Em Análise',
-    '[]'::JSONB
+    '[]'::JSONB,
+    '12/2023',
+    'PMSP-10023/2023'
 ),
 (
     'e3333333-3333-3333-3333-333333333333', 
@@ -179,7 +189,9 @@ VALUES
     ARRAY['CNPJ', 'Certidão de Diretrizes Técnicas', 'Atestado de Implantação de ERP'],
     'Exige atestado de homologação de sistema web voltado para área pública operado em nuvem com conformidade de banco de dados SQL e segurança LGPD.',
     'Em Análise',
-    '[]'::JSONB
+    '[]'::JSONB,
+    '08/2024',
+    'TJSP-202401-209'
 )
 ON CONFLICT DO NOTHING;
 

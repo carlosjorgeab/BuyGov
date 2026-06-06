@@ -1502,15 +1502,15 @@ export default function Home() {
 
               {/* Funnel of Opportunities */}
               <div className="bg-white p-6 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
-                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-600" /> Funil de Oportunidades</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-600" /> Funil de Oportunidades (Banco de Dados Ativo)</h3>
                 <div className="flex flex-col md:flex-row gap-2 h-auto md:h-24">
                    {[
-                     { label: 'Captação', count: 12, color: 'bg-slate-100 text-slate-700 border-slate-200' },
-                     { label: 'Análise Viabilidade', count: 8, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-                     { label: 'Documentação', count: 5, color: 'bg-amber-50 text-amber-700 border-amber-200' },
-                     { label: 'Em Proposta', count: 3, color: 'bg-purple-50 text-purple-700 border-purple-200' },
-                     { label: 'Sessão Pública', count: 2, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-                     { label: 'Adjudicados', count: 4, color: 'bg-emerald-500 text-white border-emerald-600' }
+                     { label: 'Cadastrados', count: companyBids.length, color: 'bg-slate-100 text-slate-700 border-slate-200' },
+                     { label: 'Em Análise', count: companyBids.filter(b => b.status === 'Em Análise').length, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                     { label: 'Em Preparação', count: companyBids.filter(b => b.status === 'Em Preparação').length, color: 'bg-amber-50 text-amber-700 border-amber-200' },
+                     { label: 'Submetidos', count: companyBids.filter(b => b.status === 'Submetido').length, color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                     { label: 'Ganhos', count: companyBids.filter(b => b.status === 'Ganho').length, color: 'bg-emerald-500 text-white border-emerald-600' },
+                     { label: 'Descartados', count: companyBids.filter(b => b.status === 'Descartado').length, color: 'bg-red-50 text-red-700 border-red-200' }
                    ].map((stage, i) => (
                      <div key={i} className={`flex-1 rounded-lg border flex flex-col justify-center items-center p-3 ${stage.color} relative overflow-hidden group hover:scale-[1.02] transition-transform cursor-pointer`}>
                        <span className="text-[10px] uppercase font-bold tracking-wider opacity-80 text-center mb-1">{stage.label}</span>
@@ -1530,7 +1530,11 @@ export default function Home() {
                    </div>
                    <div className="bg-white p-5 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
                      <p className="text-xs font-bold text-slate-500 uppercase">Taxa de Conversão</p>
-                     <h3 className="text-2xl font-extrabold text-emerald-600 mt-2 tracking-tight">32%</h3>
+                     <h3 className="text-2xl font-extrabold text-emerald-600 mt-2 tracking-tight">
+                       {companyBids.length > 0 
+                         ? `${Math.round((companyBids.filter(b => b.status === 'Ganho').length / companyBids.length) * 100)}%`
+                         : '0%'}
+                     </h3>
                    </div>
                  </div>
 
@@ -1557,7 +1561,15 @@ export default function Home() {
                               <td className="px-4 py-3 font-semibold text-slate-700">{bid.orgao}</td>
                               <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
                               <td className="px-4 py-3">
-                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">Análise</span>
+                                <span className={`px-2.5 py-0.5 rounded border text-[10px] font-bold ${
+                                  bid.status === 'Em Análise' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                  bid.status === 'Em Preparação' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                  bid.status === 'Submetido' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                  bid.status === 'Ganho' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                  'bg-slate-50 text-slate-600 border-slate-200'
+                                }`}>
+                                  {bid.status || 'Em Análise'}
+                                </span>
                               </td>
                               <td className="px-4 py-3 font-mono font-semibold text-slate-600">R$ {Number(bid.valor_estimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
                             </tr>
@@ -1599,14 +1611,38 @@ export default function Home() {
                         {['D','S','T','Q','Q','S','S'].map((d,i) => <div key={i} className="text-[10px] font-bold text-slate-400">{d}</div>)}
                       </div>
                       <div className="grid grid-cols-7 gap-1 text-center">
-                        {/* Mock Days */}
+                        {/* Live Database Days */}
                         {Array.from({length: 31}).map((_, i) => {
                           const today = new Date().getDate();
-                          const isWarning = [ today+2, today+5 ].includes(i+1);
-                          const isDanger = [ today+1 ].includes(i+1);
+                          const isToday = i+1 === today;
+                          
+                          // Check if any bid has a proposal or opening deadline on this day
+                          const bidOnDay = companyBids.find(b => {
+                            if (!b.prazo_proposta) return false;
+                            const d = new Date(b.prazo_proposta.replace(' ', 'T'));
+                            return d.getDate() === (i + 1);
+                          });
+
+                          let cellStyle = "text-slate-700 hover:bg-slate-100";
+                          if (isToday) {
+                            cellStyle = "bg-emerald-600 text-white font-bold h-7 w-7 flex items-center justify-center m-auto rounded-full";
+                          } else if (bidOnDay) {
+                            if (bidOnDay.status === 'Ganho') {
+                              cellStyle = "bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 h-7 w-7 flex items-center justify-center m-auto rounded-full";
+                            } else if (bidOnDay.status === 'Submetido') {
+                              cellStyle = "bg-purple-100 text-purple-800 font-bold border border-purple-300 h-7 w-7 flex items-center justify-center m-auto rounded-full";
+                            } else if (bidOnDay.status === 'Descartado') {
+                              cellStyle = "bg-red-50 text-red-500 line-through border border-red-200 h-7 w-7 flex items-center justify-center m-auto rounded-full";
+                            } else {
+                              cellStyle = "bg-amber-100 text-amber-800 font-bold border border-amber-300 h-7 w-7 flex items-center justify-center m-auto rounded-full";
+                            }
+                          }
+
                           return (
-                            <div key={i} className={`aspect-square flex items-center justify-center text-xs rounded-full font-medium cursor-pointer transition-colors ${i+1 === today ? 'bg-emerald-600 text-white font-bold' : isDanger ? 'bg-red-100 text-red-700 font-bold border border-red-200' : isWarning ? 'bg-amber-100 text-amber-700 font-bold border border-amber-200' : 'text-slate-700 hover:bg-slate-100'}`}>
-                              {i+1}
+                            <div key={i} className="aspect-square flex items-center justify-center text-xs rounded-full font-medium cursor-pointer transition-colors" title={bidOnDay ? `${bidOnDay.orgao}: ${bidOnDay.objeto}` : undefined}>
+                              <span className={cellStyle}>
+                                {i+1}
+                              </span>
                             </div>
                           );
                         })}
