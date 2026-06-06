@@ -944,10 +944,21 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, text: docText })
+      }).catch((err) => {
+        throw new Error("Failed to fetch (Falha de conexão com a API)");
       });
 
       if (!response.ok) {
-        throw new Error("Erro na comunicação com a API de extração");
+        throw new Error(`HTTP ${response.status} - Sem resposta da API de IA`);
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const rawText = await response.text();
+        if (rawText.includes("<!doctype") || rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
+          throw new Error("Unexpected token '<', \"<!doctype \"... is not valid JSON (Resposta HTML de erro)");
+        }
+        throw new Error("O servidor de IA retornou uma resposta não-JSON inválida.");
       }
 
       parsedJSON = await response.json();
@@ -970,7 +981,8 @@ export default function Home() {
           timestamp: new Date().toLocaleString(),
           status: 'Pendente de Importação',
           numeroEdital: parsedJSON.numero_edital || "",
-          numeroProcesso: parsedJSON.numero_processo || ""
+          numeroProcesso: parsedJSON.numero_processo || "",
+          resumo_edital: parsedJSON.resumo_edital || ""
         };
         const updatedHistory = [freshHistoryItem, ...lastScannedTenders];
         setLastScannedTenders(updatedHistory);
@@ -990,7 +1002,36 @@ export default function Home() {
         alert(`Atestado "${parsedCert.nome_atestado}" foi lido com sucesso e importado linha a linha para sua base de atestados!`);
       }
     } catch (err: any) {
-      setScannerError(`Erro ao parsear documento: ${err.message}`);
+      console.error("AI analysis failed, executing fallback parsing:", err);
+      
+      const isAtestadoTemplate = presetTextIndex === 2 || fileName.toLowerCase().includes('atestado');
+      let fallbackJSON: any = {};
+      
+      if (!isAtestadoTemplate) {
+        fallbackJSON = extractFallbackDataFromFileName(fileName);
+      } else {
+        fallbackJSON = {
+          nome_atestado: "Atestado de Capacidade Técnica (Rascunho)",
+          orgao_emissor: "Emissor não identificado",
+          data_emissao: new Date().toISOString().split('T')[0],
+          observacoes: "Erro ao parsear documento PDF",
+          itens: [
+            { descricao: "Execução de serviços/fornecimento compatível", quantidade: 1, unidade: "un" }
+          ]
+        };
+      }
+
+      setScannerResult({ ...fallbackJSON, isCertificate: isAtestadoTemplate });
+      setEditableScannerResult({ ...fallbackJSON });
+
+      let errorFriendly = err.message || "";
+      if (errorFriendly.includes("Unexpected token '<'") || errorFriendly.includes("doctype")) {
+        errorFriendly = "Unexpected token '<', \"<!doctype \"... is not valid JSON";
+      } else if (errorFriendly.includes("fetch") || errorFriendly.includes("Failed to fetch")) {
+        errorFriendly = "Failed to fetch (Sem conexão com o servidor)";
+      }
+
+      setScannerError(`Aviso: Ocorreu uma instabilidade na análise inteligente do edital (${errorFriendly}). Mapeamos um rascunho com base no nome do arquivo para você continuar sem perder seu progresso!`);
     } finally {
       setScannerIsProcessing(false);
       setUploadProgressStage('');
@@ -1075,19 +1116,44 @@ export default function Home() {
         const response = await fetch("/api/parse-pdf", {
           method: "POST",
           body: formData,
+        }).catch((err) => {
+          throw new Error("Failed to fetch (Falha de conexão com o servidor)");
         });
+
         if (!response.ok) {
-          throw new Error("Erro ao ler o arquivo PDF");
+          throw new Error(`HTTP ${response.status} - Sem resposta do leitor de PDF`);
         }
+
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          const rawText = await response.text();
+          if (rawText.includes("<!doctype") || rawText.includes("<!DOCTYPE") || rawText.includes("<html")) {
+            throw new Error("Unexpected token '<', \"<!doctype \"... is not valid JSON (Erro 500 do servidor PDF)");
+          }
+          throw new Error("O servidor retornou uma resposta inválida não-JSON.");
+        }
+
         const data = await response.json();
         const text = data.text;
-        setRawScannerText(text);
+        setRawScannerText(text || "");
         
         // Pass text directly to Gemini
-        await handleTriggerTenderScanner(null, text, file.name);
+        await handleTriggerTenderScanner(null, text || "", file.name);
       } catch (error: any) {
-        setScannerError(`Erro ao processar PDF: ${error.message}`);
-        setScannerIsProcessing(false);
+        console.error("PDF parsing failure caught:", error);
+        let errorFriendly = error.message || "";
+        if (errorFriendly.includes("Unexpected token '<'") || errorFriendly.includes("doctype")) {
+          errorFriendly = "Unexpected token '<', \"<!doctype \"... is not valid JSON (Resposta HTML de erro)";
+        } else if (errorFriendly.includes("fetch") || errorFriendly.includes("Failed to fetch")) {
+          errorFriendly = "Failed to fetch (Sem conexão com o servidor de PDF)";
+        }
+
+        // Trigger fallback with empty text to auto-fill based on file name
+        setRawScannerText("");
+        await handleTriggerTenderScanner(null, "", file.name);
+        
+        // Set custom helpful message detailing the error and how we bypassed it
+        setScannerError(`Aviso: Ocorreu uma instabilidade ao ler o arquivo PDF (${errorFriendly}). Contornamos o problema gerando uma sugestão editável e preenchida automaticamente a partir do nome do arquivo ("${file.name}") para que você continue trabalhando sem interrupções!`);
       } finally {
         setUploadProgressStage("");
       }
