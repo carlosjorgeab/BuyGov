@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
     
     try {
       // Dynamic import to bypass static Next.js ESM default export resolution check
-      const pdfModule = await import("pdf-parse");
+      // @ts-ignore
+      const pdfModule = await import("pdf-parse/lib/pdf-parse.js");
       const anyPdfModule = pdfModule as any;
       
       let parsedData;

@@ -44,10 +44,10 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
   "orgao": "Nome completo do órgão licitante / contratante",
   "objeto": "Título ou objeto comercial exato da licitação",
   "resumo_edital": "Resumo analítico focado e objetivo do edital (o que estão comprando, quantidades, local de entrega, se há cotas, etc)",
-  "valor_estimado": 1250000.00,  // Valor numérico estimado ou teto, coloque nulo se não encontrar
+  "valor_estimado": 1250000.00,
   "prazo_proposta": "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
   "prazo_abertura": "data e hora da sessão no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
-  "documentos_obrigatorios": ["Documento 1", "Documento 2", "Certidão X"], // de habilitação
+  "documentos_obrigatorios": ["Documento 1", "Documento 2", "Certidão X"],
   "exigencias_atestados": "Frase resumida das exigências qualitativas ou quantitativas de atestados de capacidade técnica do edital"
 }`;
 
@@ -61,13 +61,18 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
       });
 
       const resultText = response.text || "{}";
-      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      return NextResponse.json(JSON.parse(cleanJson));
+      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      try {
+        return NextResponse.json(JSON.parse(cleanJson));
+      } catch (jsonErr) {
+        const match = cleanJson.match(/\{[\s\S]*\}/);
+        if (match) return NextResponse.json(JSON.parse(match[0]));
+        throw jsonErr;
+      }
     }
 
     if (action === "parse_certificate") {
       const prompt = `Analise o texto extraído do Atestado de Capacidade Técnica abaixo e retorne um objeto JSON contendo informações extraídas de forma estruturada, com itens linha a linha detalhados.
-Texto do Atestado:
 "${text}"
 
 Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
@@ -80,7 +85,7 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
     {
       "item_numero": 1,
       "descricao": "Descrição clara dos serviços executados (ex: fornecimento de x monitores)",
-      "quantidade": 150.00, // número
+      "quantidade": 150.00,
       "unidade": "un, m2, h, km, etc",
       "relevancia_tecnica": "Alta, Média ou Baixa"
     }
@@ -97,8 +102,14 @@ Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
       });
 
       const resultText = response.text || "{}";
-      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      return NextResponse.json(JSON.parse(cleanJson));
+      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      try {
+        return NextResponse.json(JSON.parse(cleanJson));
+      } catch (jsonErr) {
+        const match = cleanJson.match(/\{[\s\S]*\}/);
+        if (match) return NextResponse.json(JSON.parse(match[0]));
+        throw jsonErr;
+      }
     }
 
     if (action === "analyze_compatibility") {
@@ -118,17 +129,17 @@ ${JSON.stringify(certsData, null, 2)}
 
 Analise se os itens executados listados nos atestados atendem quantitativamente ou qualitativamente às exigências descritas no Edital. Calcule um score matemático estimado de aderência técnica (de 0 a 100).
 
-Retorne rigorosamente no formato JSON com os seguintes campos:
+Retorne rigorosamente no formato JSON com os seguintes campos sem adicionar comentários:
 {
-  "score_aderencia": 85, // número de 0 a 100 indicando compatibilidade técnica
-  "elegibilidade": "Altamente Recomendável" | "Possível com Riscos" | "Não Elegível",
+  "score_aderencia": 85,
+  "elegibilidade": "Escolha entre: Altamente Recomendável, Possível com Riscos, ou Não Elegível",
   "justificativa": "Texto explicativo detalhado sobre os atestados apresentados que cobrem e fundamentam a participação",
   "pontos_fortes": ["Explicar qual atestado e item comprova satisfatoriamente cada requisito"],
   "pontos_atencao": ["Quais requisitos do edital não têm comprovação exata ou representam gap de quantidade/exigência"],
   "checklist_verificação": [
     {
       "item": "Requisito X",
-      "status": "Atendido" | "Parcialmente Atendido" | "Não Atendido",
+      "status": "Escolha entre: Atendido, Parcialmente Atendido, ou Não Atendido",
       "detalhe": "Comprovado via Atestado Y"
     }
   ],
@@ -145,8 +156,14 @@ Retorne rigorosamente no formato JSON com os seguintes campos:
       });
 
       const resultText = response.text || "{}";
-      const cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      return NextResponse.json(JSON.parse(cleanJson));
+      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
+      try {
+        return NextResponse.json(JSON.parse(cleanJson));
+      } catch (jsonErr) {
+        const match = cleanJson.match(/\{[\s\S]*\}/);
+        if (match) return NextResponse.json(JSON.parse(match[0]));
+        throw jsonErr;
+      }
     }
 
     return NextResponse.json({ error: "Ação inválida ou não especificada." }, { status: 400 });
