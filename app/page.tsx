@@ -260,6 +260,9 @@ export default function Home() {
   const [newBidObjeto, setNewBidObjeto] = useState('');
   const [newBidOrgao, setNewBidOrgao] = useState('');
   const [newBidValor, setNewBidValor] = useState(50000);
+  const [newBidNumeroEdital, setNewBidNumeroEdital] = useState('');
+  const [newBidNumeroProcesso, setNewBidNumeroProcesso] = useState('');
+  const [selectedBidDetail, setSelectedBidDetail] = useState<Licitacao | null>(null);
   const [newBidPrazoProp, setNewBidPrazoProp] = useState('2026-06-05 14:00');
   const [newBidPrazoAber, setNewBidPrazoAber] = useState('2026-06-06 09:00');
   const [newBidExigencias, setNewBidExigencias] = useState('');
@@ -704,7 +707,9 @@ export default function Home() {
         { id: '1', label: 'Regularidade Fiscal', checked: false },
         { id: '2', label: 'Balanço Patrimonial', checked: false }
       ],
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: new Date().toISOString().split('T')[0],
+      numero_edital: newBidNumeroEdital,
+      numero_processo: newBidNumeroProcesso
     };
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
@@ -712,6 +717,8 @@ export default function Home() {
     setNewBidObjeto('');
     setNewBidOrgao('');
     setNewBidValor(50000);
+    setNewBidNumeroEdital('');
+    setNewBidNumeroProcesso('');
   };
 
   const handleSaveEditBid = (updatedBid: Licitacao) => {
@@ -943,51 +950,133 @@ export default function Home() {
       let parsedJSON: any = {};
 
       if (!isAtestadoTemplate) {
+        let numero_edital = "";
+        let numero_processo = "";
+        let orgao = "Órgão Licitante de Destino";
+        let objeto = "Extratação local - verifique o objeto no documento.";
+        let valor_estimado = 0;
+        let prazo_proposta = "2026-06-25 09:00";
+        let prazo_abertura = "2026-06-25 09:00";
+
+        if (presetTextIndex === 0) {
+          numero_edital = "45/2023";
+          numero_processo = "MS-10492/2023";
+          orgao = "Ministério da Saúde (MS)";
+          objeto = "PE 45/2023. Objeto: Aquisição de equipamentos hospitalares para ampliação de rede intensiva UTI integrada. Exige atestado comprovando o fornecimento continuado de no mínimo 30 monitores cardíacos multiparamétricos de alta complexidade instalado.";
+          valor_estimado = 2450000.00;
+          prazo_proposta = "2026-10-09 14:00";
+          prazo_abertura = "2026-10-09 14:30";
+        } else if (presetTextIndex === 1) {
+          numero_edital = "12/2023";
+          numero_processo = "PMSP-10023/2023";
+          orgao = "Prefeitura do Município de São Paulo";
+          objeto = "Contratação de serviços de engenharia civil para impermeabilização de laje interna, restauração física estrutural e pintura da fachada de blocos de ensino municipal.";
+          valor_estimado = 850000.00;
+          prazo_proposta = "2026-10-15 14:00";
+          prazo_abertura = "2026-10-15 14:00";
+        } else {
+          // Robust Custom Text Parse Strategy
+          const getMatch = (regex: RegExp) => {
+            const match = docText.match(regex);
+            return match && match[1] ? match[1].trim() : "";
+          };
+
+          // 1. Número do Edital Regexes
+          const editalRegexes = [
+            /(?:Edital|Pregão|Pregao|Tomada|Concorrência|Concorrencia|Inexigibilidade|Dispensa)\s+(?:de\s+)?(?:n[º°o]?\.?\s*de\s*edital|de\s+n[º°o]?\.?\s*|n[º°o]?\.?\s*|n[°ºo]?\s*)?([\d\w./\-]+)/i,
+            /(?:PE|CC|TP|DL|IL|CP|PR)\s*(?:n[º°o]?\.?\s*)?([\d\w./\-]+)/i,
+            /Edital\s+(?:n[º°o]?\.?\s*)?([\d\w./\-]+)/i,
+            /n[º°o]?\.?\s*([\d\w./\-]+)/i
+          ];
+          for (const regex of editalRegexes) {
+            const match = docText.match(regex);
+            if (match && match[1] && match[1].length > 2) {
+              numero_edital = match[1].trim();
+              break;
+            }
+          }
+          if (numero_edital && numero_edital.endsWith('.')) {
+            numero_edital = numero_edital.slice(0, -1);
+          }
+
+          // 2. Número do Processo Regexes
+          const processoRegexes = [
+            /(?:Processo|Proc\.?|Protocolo|Prot\.?|Processo\s+Administrativo|Processo\s+n[º°o]?|Proc\s+n[º°o]?)\s+(?:n[º°o]?\.?\s*de\s*processo|de\s+n[º°o]?\.?\s*|n[º°o]?\.?\s*|n[°ºo]?\s*)?([\d\w./\-]+)/i,
+            /Processo\s+Administrativo\s*(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
+            /Processo\s+(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
+            /Proc\.\s+(?:n[º°o]?\s*)?([\d\w./\-]+)/i,
+            /Processo\s*:\s*([\d\w./\-]+)/i
+          ];
+          for (const regex of processoRegexes) {
+            const match = docText.match(regex);
+            if (match && match[1] && match[1].length > 2) {
+              numero_processo = match[1].trim();
+              break;
+            }
+          }
+          if (numero_processo && numero_processo.endsWith('.')) {
+            numero_processo = numero_processo.slice(0, -1);
+          }
+
+          // 3. Órgão Contratante - Geralmente se encontra no início do arquivo como Nome Principal
+          const lines = docText.split("\n").map(l => l.trim()).filter(l => l.length > 5);
+          const orgaoKeywords = ["PREFEITURA", "MUNICÍPIO", "MUNICIPIO", "ESTADO", "SECRETARIA", "MINISTÉRIO", "MINISTERIO", "TRIBUNAL", "FEDERAL", "CONSELHO", "CÂMARA", "CAMARA", "CENTRO", "DEPARTAMENTO", "FUNDO", "FUNDAÇÃO", "FUNDACAO", "SUPERINTENDÊNCIA", "SUPERINTENDENCIA", "GOVERNO", "COMPANHIA", "SANEPAR", "SABESP", "PRODESP", "MINISTERIO DA SAUDE"];
+          let foundOrgaoFromStart = "";
+          for (let idx = 0; idx < Math.min(lines.length, 6); idx++) {
+            const uppercaseLine = lines[idx].toUpperCase();
+            if (orgaoKeywords.some(keyword => uppercaseLine.includes(keyword))) {
+              foundOrgaoFromStart = lines[idx];
+              break;
+            }
+          }
+
+          const orgaoMatch = docText.match(/(?:Prefeitura\s+Municipal|Prefeitura|Tribunal|Ministério|Ministerio|Secretaria|Governo|Câmara|Camara|Conselho|Autarquia|Fundação|Fundacao|Consórcio|Consorcio)[^\n,.;]*/i);
+          if (foundOrgaoFromStart) {
+            orgao = foundOrgaoFromStart.trim();
+          } else if (orgaoMatch) {
+            orgao = orgaoMatch[0].trim();
+          }
+
+          // 4. Objeto
+          const objetoStartIndex = docText.search(/objeto[:\s\n\-]+/i);
+          if (objetoStartIndex !== -1) {
+            const subText = docText.slice(objetoStartIndex + 7, objetoStartIndex + 300);
+            const objetoLines = subText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+            let compiledObjeto = "";
+            for (const line of objetoLines) {
+              if (line.toUpperCase().includes("VALOR") || line.toUpperCase().includes("PRAZO") || line.toUpperCase().includes("EDITAL") || line.toUpperCase().includes("CLÁUSULA") || line.toUpperCase().includes("CONTRATAÇÃO DE") && compiledObjeto.length > 50) {
+                break;
+              }
+              compiledObjeto += " " + line;
+              if (compiledObjeto.length > 220) break;
+            }
+            if (compiledObjeto.trim()) {
+              objeto = compiledObjeto.trim();
+            }
+          }
+
+          // 5. Valor Estimado
+          const valorMatches = docText.match(/(?:valor.*?estimado|valor.*?total|estimado\s+em)[:\s]*R?\$?\s*([\d\.,]+)/i) || docText.match(/R\$\s*([\d\.,]+)/i);
+          if (valorMatches && valorMatches[1]) {
+            const cleanValue = valorMatches[1].replace(/\./g, "").replace(",", ".");
+            valor_estimado = parseFloat(cleanValue) || 0;
+          }
+
+          // 6. Data da Sessão / Abertura
+          const dateMatch = docText.match(/(\d{2}\/\d{2}\/\d{4}(?:\s*(?:ás|as|às)?\s*\d{2}[:h]\d{2})?)/i) || docText.match(/(\d{4}-?\d{2}-?\d{2}\s*\d{2}[:h]\d{2})/i);
+          if (dateMatch && dateMatch[1]) {
+            prazo_proposta = dateMatch[1].replace(/h/i, ":00");
+          }
+          prazo_abertura = prazo_proposta;
+        }
+
         const getMatch = (regex: RegExp) => {
           const match = docText.match(regex);
-          return match && match[1] ? match[1].trim() : "";
+          return match ? match[1] : null;
         };
 
         const modalidade = getMatch(/(Pregão Eletrônico|Pregão|Concorrência|Tomada\s+de\s+Preços|Convite|Dispensa|Inexigibilidade)/i) || "Pregão Eletrônico";
         
-        let orgao = "Órgão Licitante de Destino";
-        const orgaoMatch = docText.match(/(?:Prefeitura\s+Municipal|Prefeitura|Tribunal|Ministério|Ministerio|Secretaria|Governo|Câmara|Camara|Conselho|Autarquia|Fundação|Fundacao|Consórcio|Consorcio)[^\n,.;]*/i);
-        if (orgaoMatch) {
-          orgao = orgaoMatch[0].trim();
-        }
-
-        let objeto = "Extratação local - verifique o objeto no documento.";
-        const objetoStartIndex = docText.search(/objeto[:\s\n\-]+/i);
-        if (objetoStartIndex !== -1) {
-          const subText = docText.slice(objetoStartIndex + 7, objetoStartIndex + 300);
-          const objetoLines = subText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-          let compiledObjeto = "";
-          for (const line of objetoLines) {
-            if (line.toUpperCase().includes("VALOR") || line.toUpperCase().includes("PRAZO") || line.toUpperCase().includes("EDITAL") || line.toUpperCase().includes("CLÁUSULA") || line.toUpperCase().includes("CONTRATAÇÃO DE") && compiledObjeto.length > 50) {
-              break;
-            }
-            compiledObjeto += " " + line;
-            if (compiledObjeto.length > 220) break;
-          }
-          if (compiledObjeto.trim()) {
-            objeto = compiledObjeto.trim();
-          }
-        }
-        
-        let valor_estimado = 0;
-        const valorMatches = docText.match(/(?:valor.*?estimado|valor.*?total|estimado\s+em)[:\s]*R?\$?\s*([\d\.,]+)/i) || docText.match(/R\$\s*([\d\.,]+)/i);
-        if (valorMatches && valorMatches[1]) {
-          const cleanValue = valorMatches[1].replace(/\./g, "").replace(",", ".");
-          valor_estimado = parseFloat(cleanValue) || 0;
-        }
-        
-        let prazo_proposta = "2026-06-25 09:00";
-        const dateMatch = docText.match(/(\d{2}\/\d{2}\/\d{4}(?:\s*(?:ás|as|às)?\s*\d{2}[:h]\d{2})?)/i) || docText.match(/(\d{4}-?\d{2}-?\d{2}\s*\d{2}[:h]\d{2})/i);
-        if (dateMatch && dateMatch[1]) {
-          prazo_proposta = dateMatch[1].replace(/h/i, ":00");
-        }
-        const prazo_abertura = prazo_proposta;
-
         let exigencias_atestados = "Atestado de capacidade técnica compatível com o objeto.";
         const atestadoStartIndex = docText.search(/(?:exige|atestado|capacidade\s+técnica|qualificação\s+técnica)[:\s\n\-]+/i);
         if (atestadoStartIndex !== -1) {
@@ -999,7 +1088,7 @@ export default function Home() {
             exigencias_atestados = subText.substring(0, 100) + "...";
           }
         }
-        
+
         const documentos_obrigatorios = ["Cartão CNPJ", "Regularidade Fiscal", "Balanço Patrimonial", "Certidão Negativa Trabalhista"];
         if (docText.toLowerCase().includes("anvisa")) documentos_obrigatorios.push("Certificado ANVISA");
         if (docText.toLowerCase().includes("crea")) documentos_obrigatorios.push("Registro no CREA");
@@ -1013,7 +1102,9 @@ export default function Home() {
           prazo_proposta,
           prazo_abertura,
           exigencias_atestados,
-          documentos_obrigatorios
+          documentos_obrigatorios,
+          numero_edital,
+          numero_processo
         };
       } else {
         parsedJSON = {
@@ -1043,7 +1134,9 @@ export default function Home() {
           exigencias_atestados: parsedJSON.exigencias_atestados || "Não identificados",
           documentos_obrigatorios: parsedJSON.documentos_obrigatorios || [],
           timestamp: new Date().toLocaleString(),
-          status: 'Pendente de Importação'
+          status: 'Pendente de Importação',
+          numeroEdital: parsedJSON.numero_edital || "",
+          numeroProcesso: parsedJSON.numero_processo || ""
         };
         const updatedHistory = [freshHistoryItem, ...lastScannedTenders];
         setLastScannedTenders(updatedHistory);
@@ -1101,7 +1194,9 @@ export default function Home() {
         label: doc,
         checked: false
       })),
-      created_at: new Date().toISOString().split('T')[0]
+      created_at: new Date().toISOString().split('T')[0],
+      numero_edital: dataToSave.numero_edital || "",
+      numero_processo: dataToSave.numero_processo || ""
     };
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
@@ -1441,7 +1536,7 @@ export default function Home() {
 
                  {/* Recent Bids Table */}
                  <div className="col-span-2 bg-white p-6 rounded-xl border shadow-sm" style={{ borderColor: panelBorderColor }}>
-                   <h3 className="text-sm font-bold text-slate-800 mb-4">Lista Mestra de Editais Ativos</h3>
+                   <h3 className="text-sm font-bold text-slate-800 mb-4">Lista Mestra de Editais Ativos (Clique para ver o Registro do Banco de Dados)</h3>
                    <div className="overflow-x-auto">
                      <table className="w-full text-left text-sm whitespace-nowrap">
                        <thead className="bg-slate-50/50 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
@@ -1453,20 +1548,24 @@ export default function Home() {
                          </tr>
                        </thead>
                        <tbody className="divide-y divide-slate-100">
-                         {companyBids.slice(0, 5).map((bid, i) => (
-                           <tr key={bid.id} className="hover:bg-slate-50/50 cursor-pointer transition-colors">
-                             <td className="px-4 py-3 font-semibold text-slate-800">{bid.orgao}</td>
-                             <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
-                             <td className="px-4 py-3">
-                               <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">Análise</span>
-                             </td>
-                             <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-700">R$ {Number(bid.valor_estimado).toLocaleString('pt-BR')}</td>
-                           </tr>
-                         ))}
-                         {companyBids.length === 0 && (
-                           <tr><td colSpan={4} className="text-center py-6 text-slate-400 text-sm">Nenhum edital cadastrado.</td></tr>
-                         )}
-                       </tbody>
+                          {companyBids.slice(0, 10).map((bid, i) => (
+                            <tr key={bid.id} onClick={() => setSelectedBidDetail(bid)} className="hover:bg-slate-50/50 cursor-pointer transition-colors text-xs" title="Clique para ver o registro do banco de dados">
+                              <td className="px-4 py-3 font-semibold font-mono text-slate-800">
+                                <div>{bid.numero_edital || 'Não definido'}</div>
+                                <div className="text-[10px] text-slate-400 font-normal">{bid.numero_processo || 'Não definido'}</div>
+                              </td>
+                              <td className="px-4 py-3 font-semibold text-slate-700">{bid.orgao}</td>
+                              <td className="px-4 py-3 truncate max-w-[200px] text-slate-600" title={bid.objeto}>{bid.objeto}</td>
+                              <td className="px-4 py-3">
+                                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">Análise</span>
+                              </td>
+                              <td className="px-4 py-3 font-mono font-semibold text-slate-600">R$ {Number(bid.valor_estimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          ))}
+                          {companyBids.length === 0 && (
+                            <tr><td colSpan={5} className="text-center py-6 text-slate-400 text-sm">Nenhum edital cadastrado.</td></tr>
+                          )}
+                        </tbody>
                      </table>
                    </div>
                  </div>
@@ -1728,7 +1827,9 @@ export default function Home() {
                                           prazo_proposta: tender.prazoProposta,
                                           prazo_abertura: tender.prazoProposta,
                                           exigencias_atestados: tender.exigencias_atestados,
-                                          documentos_obrigatorios: tender.documentos_obrigatorios
+                                          documentos_obrigatorios: tender.documentos_obrigatorios,
+                                          numero_edital: (tender as any).numeroEdital || "",
+                                          numero_processo: (tender as any).numeroProcesso || ""
                                         });
                                         setEditableScannerResult({
                                           orgao: tender.orgao,
@@ -1738,7 +1839,9 @@ export default function Home() {
                                           prazo_proposta: tender.prazoProposta,
                                           prazo_abertura: tender.prazoProposta,
                                           exigencias_atestados: tender.exigencias_atestados,
-                                          documentos_obrigatorios: tender.documentos_obrigatorios
+                                          documentos_obrigatorios: tender.documentos_obrigatorios,
+                                          numero_edital: (tender as any).numeroEdital || "",
+                                          numero_processo: (tender as any).numeroProcesso || ""
                                         });
                                       }}
                                       className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
@@ -1792,6 +1895,28 @@ export default function Home() {
                         </button>
                      </div>
                      <div className="space-y-4">
+                       <div className="grid grid-cols-2 gap-4">
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Número do Edital</label>
+                           <input 
+                             type="text" 
+                             value={editableScannerResult?.numero_edital || ''} 
+                             onChange={(e) => setEditableScannerResult({ ...editableScannerResult, numero_edital: e.target.value })}
+                             className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800"
+                             placeholder="Ex: 45/2023"
+                           />
+                         </div>
+                         <div>
+                           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Número do Processo</label>
+                           <input 
+                             type="text" 
+                             value={editableScannerResult?.numero_processo || ''} 
+                             onChange={(e) => setEditableScannerResult({ ...editableScannerResult, numero_processo: e.target.value })}
+                             className="w-full border border-slate-200 rounded px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-slate-800"
+                             placeholder="Ex: MS-10492/2023"
+                           />
+                         </div>
+                       </div>
                        <div>
                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Órgão Licitante</label>
                          <input 
@@ -2158,7 +2283,7 @@ export default function Home() {
 
 
           {/* CRUD Modals Wrapper */}
-          {Object.values([isAddingCompany, isAddingUser, isAddingCert, isAddingBid]).some(Boolean) && (
+          {Object.values([isAddingCompany, isAddingUser, isAddingCert, isAddingBid, !!selectedBidDetail]).some(Boolean) && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto">
               {/* Company Modal */}
               {isAddingCompany && (
@@ -2273,6 +2398,92 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Database Bid Detail Modal */}
+              {selectedBidDetail && (
+                <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl m-auto animate-in fade-in zoom-in-95 duration-200 border-t-4 border-emerald-650 max-h-[90vh] overflow-y-auto z-50 text-left">
+                  <div className="flex justify-between items-start mb-4 pb-2 border-b">
+                    <div>
+                      <span className="px-2 py-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full uppercase tracking-wider font-mono">DADOS DO BANCO DE DADOS OFICIAL</span>
+                      <h3 className="text-lg font-bold text-slate-800 mt-1">Detalhes Completos do Certame Salvo</h3>
+                    </div>
+                    <button onClick={() => setSelectedBidDetail(null)} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><X className="w-5 h-5"/></button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border">
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Número do Edital</span>
+                        <span className="font-mono text-sm font-bold text-slate-800">{selectedBidDetail.numero_edital || "Não fornecido/extraído"}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Número do Processo</span>
+                        <span className="font-mono text-sm font-bold text-slate-800">{selectedBidDetail.numero_processo || "Não fornecido/extraído"}</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Órgão Contratante</span>
+                        <span className="text-sm font-semibold text-slate-800">{selectedBidDetail.orgao}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Modalidade</span>
+                        <span className="text-sm font-semibold text-slate-800">{selectedBidDetail.modalidade}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Objeto da Contratação</span>
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border leading-relaxed whitespace-pre-wrap">{selectedBidDetail.objeto}</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Valor Estimado</span>
+                        <span className="font-mono text-sm font-black text-emerald-600">R$ {Number(selectedBidDetail.valor_estimado).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Prazo Proposta</span>
+                        <span className="font-mono text-xs text-slate-605">{selectedBidDetail.prazo_proposta?.split('T')[0] || selectedBidDetail.prazo_proposta}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sessão / Abertura</span>
+                        <span className="font-mono text-xs text-slate-605">{selectedBidDetail.prazo_abertura?.split('T')[0] || selectedBidDetail.prazo_abertura || selectedBidDetail.prazo_proposta?.split('T')[0]}</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 font-sans">Exigências Técnicas / Atestados</span>
+                      <div className="p-3 bg-indigo-50/50 border border-indigo-100 rounded-lg text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {selectedBidDetail.exigencias_atestados || "Nenhuma exigência específica apontada ou identificada."}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Checklist de Documentos de Habilitação</span>
+                      {selectedBidDetail.documentos_obrigatorios && selectedBidDetail.documentos_obrigatorios.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {selectedBidDetail.documentos_obrigatorios.map((doc, idx) => (
+                            <div key={idx} className="flex gap-2 items-start p-2 bg-slate-50 border rounded text-xs text-slate-700">
+                              <span className="text-emerald-500 font-bold">✓</span>
+                              <span>{doc}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">Dispensado ou nenhum documento listado no extrato do edital.</p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <button onClick={() => setSelectedBidDetail(null)} className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs shadow-sm transition-colors">
+                        Fechar Registro
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Bid Modal */}
               {isAddingBid && (
                 <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl m-auto animate-in fade-in zoom-in-95 duration-200">
@@ -2281,6 +2492,16 @@ export default function Home() {
                     <button onClick={() => setIsAddingBid(false)} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><X className="w-5 h-5"/></button>
                   </div>
                   <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Número do Edital</label>
+                        <input type="text" value={newBidNumeroEdital} onChange={e=>setNewBidNumeroEdital(e.target.value)} className="w-full border p-2 rounded focus:outline-none text-sm font-mono" placeholder="Ex: 45/2023" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Número do Processo</label>
+                        <input type="text" value={newBidNumeroProcesso} onChange={e=>setNewBidNumeroProcesso(e.target.value)} className="w-full border p-2 rounded focus:outline-none text-sm font-mono" placeholder="Ex: MS-10492/2023" />
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-500 mb-1">Órgão Licitante</label>

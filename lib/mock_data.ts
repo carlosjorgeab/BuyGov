@@ -27,6 +27,8 @@ export interface Licitacao {
   status: 'Em Análise' | 'Em Preparação' | 'Submetido' | 'Ganho' | 'Descartado';
   checklist_itens: ChecklistItem[];
   created_at: string;
+  numero_edital?: string;
+  numero_processo?: string;
 }
 
 export interface AtestadoItem {
@@ -195,13 +197,15 @@ export const INITIAL_BIDS = [
       { id: 'c1', label: 'Certidão Federal Negativa', checked: true },
       { id: 'c2', label: 'Balanço Patrimonial', checked: false }
     ],
-    created_at: '2026-06-02'
+    created_at: '2026-06-02',
+    numero_edital: '45/2023',
+    numero_processo: 'MS-10492/2023'
   },
   {
     id: 'e2222222',
     chave_empresa: 'LICITATECH',
     modalidade: 'Concorrência',
-    objeto: 'Prestação de serviços de reforma estrutural, impermeabilização de lajes e pintura de blocos administrativos.',
+    objeto: 'Prestação de serviços de reforma estrutural, impermeabilização de lajes e pintura de blocks administrativos.',
     orgao: 'PMSP - Sec. de Obras',
     valor_estimado: 850000.00,
     prazo_proposta: '2026-06-08 14:30',
@@ -212,7 +216,9 @@ export const INITIAL_BIDS = [
     checklist_itens: [
       { id: 'c1', label: 'Certidão CREA', checked: true }
     ],
-    created_at: '2026-06-02'
+    created_at: '2026-06-02',
+    numero_edital: '12/2023',
+    numero_processo: 'PMSP-10023/2023'
   },
   {
     id: 'e3333333',
@@ -227,7 +233,9 @@ export const INITIAL_BIDS = [
     exigencias_atestados: 'Exige atestado de homologação de sistema web para área pública em nuvem de acordo com a LGPD.',
     status: 'Em Análise',
     checklist_itens: [],
-    created_at: '2026-06-02'
+    created_at: '2026-06-02',
+    numero_edital: '08/2024',
+    numero_processo: 'TJSP-202401-209'
   },
   {
     id: 'e4444444',
@@ -242,7 +250,9 @@ export const INITIAL_BIDS = [
     exigencias_atestados: 'Atestar fornecimento de servidores com processador Intel Xeon e certificação de rede estruturada.',
     status: 'Em Preparação',
     checklist_itens: [],
-    created_at: '2026-06-02'
+    created_at: '2026-06-02',
+    numero_edital: '67/2025',
+    numero_processo: 'PR-2025-098-REDES'
   }
 ] as Licitacao[];
 
