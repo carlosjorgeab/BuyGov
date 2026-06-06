@@ -358,20 +358,22 @@ export default function Home() {
 
 
   // --- SUPABASE INITIAL LOAD & SYNCS ---
+  const getSupabaseClient = useCallback(() => {
+    const { getSupabase } = require('@/lib/supabase');
+    return getSupabase(supabaseUrl, supabaseKey);
+  }, [supabaseUrl, supabaseKey]);
+
   const loadSupabaseData = useCallback(async (clientOverride?: any) => {
-    const client = clientOverride || supabase;
+    const client = clientOverride || getSupabaseClient();
     if (!client) {
-      // If no valid client, we might be in offline mode or waiting for setup
-      if (supabaseMode === 'offline') {
-        setUsuarios(INITIAL_USERS);
-        setEmpresas(INITIAL_COMPANIES);
-        setLicitacoes(INITIAL_BIDS);
-        setAtestados(INITIAL_CERTIFICATES);
-        setDocumentos(INITIAL_DOCUMENTS);
-        // setDicionario([]);
-        setPerfis(INITIAL_PROFILES);
-        setStateLoaded(true);
-      }
+      // Load offline seed collections if no database is available
+      setUsuarios(INITIAL_USERS);
+      setEmpresas(INITIAL_COMPANIES);
+      setLicitacoes(INITIAL_BIDS);
+      setAtestados(INITIAL_CERTIFICATES);
+      setDocumentos(INITIAL_DOCUMENTS);
+      setPerfis(INITIAL_PROFILES);
+      setStateLoaded(true);
       return;
     }
 
@@ -417,11 +419,7 @@ export default function Home() {
     } finally {
       setIsSyncing(false);
     }
-  }, [supabaseMode]);
-
-  const getSupabaseClient = () => {
-    return supabase;
-  };
+  }, [getSupabaseClient]);
 
   useEffect(() => {
     const token = generateGuid();
@@ -429,11 +427,32 @@ export default function Home() {
 
     const checkAuth = async () => {
       setSessionToken(token);
-      
-      const savedMode = localStorage.getItem('proprocure_supabase_mode') as any || (supabase ? 'connected' : 'offline');
-      setSupabaseMode(savedMode);
+      let activeClient = null;
+      let isConfigured = false;
 
-      await loadSupabaseData();
+      try {
+        const configRes = await fetch('/api/config');
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          if (configData.supabaseUrl && configData.supabaseKey && configData.supabaseUrl.startsWith('https://')) {
+            const { getSupabase } = await import('@/lib/supabase');
+            const client = getSupabase(configData.supabaseUrl, configData.supabaseKey);
+            if (client) {
+              setSupabaseUrl(configData.supabaseUrl);
+              setSupabaseKey(configData.supabaseKey);
+              activeClient = client;
+              isConfigured = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Falha ao obter credenciais do Supabase no servidor:", err);
+      }
+
+      const activeMode = isConfigured ? 'connected' : 'offline';
+      setSupabaseMode(activeMode);
+
+      await loadSupabaseData(activeClient);
       
       // Look for persisted login
       const savedUser = localStorage.getItem('proprocure_logged_user');
@@ -450,7 +469,7 @@ export default function Home() {
     };
 
     checkAuth();
-  }, [loadSupabaseData, timeoutMinutes]);
+  }, [loadSupabaseData, timeoutMinutes, supabaseUrl, supabaseKey]);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -518,28 +537,43 @@ export default function Home() {
 
   // --- MOCK SUPABASE REMOTE SYNC SIMULATOR ---
   const handleSupabaseSync = async () => {
-    if (!supabaseUrl || !supabaseKey) {
-      alert("Por favor, configure o link URL e a chave anônima da Supabase em Ajustes antes de sincronizar!");
-      return;
-    }
     setIsSyncing(true);
-    setSyncLogs(prev => ["Conectando ativamente com o banco Supabase em modo nativo...", ...prev]);
+    setSyncLogs(prev => ["Sincronizando com o banco de dados Supabase...", ...prev]);
 
     try {
-      const { getSupabase } = await import('@/lib/supabase');
-      const tempClient = getSupabase(supabaseUrl, supabaseKey);
-      await loadSupabaseData(tempClient);
+      let isConfigured = false;
+      let activeClient = null;
+
+      const configRes = await fetch('/api/config');
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        if (configData.supabaseUrl && configData.supabaseKey && configData.supabaseUrl.startsWith('https://')) {
+          const { getSupabase } = await import('@/lib/supabase');
+          activeClient = getSupabase(configData.supabaseUrl, configData.supabaseKey);
+          if (activeClient) {
+            setSupabaseUrl(configData.supabaseUrl);
+            setSupabaseKey(configData.supabaseKey);
+            isConfigured = true;
+          }
+        }
+      }
+
+      if (!isConfigured || !activeClient) {
+        alert("O sistema está rodando em modo Offline de demonstração. Para sincronizar as tabelas com o Supabase de forma integrada, certifique-se de configurar as variáveis NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY no servidor.");
+        setIsSyncing(false);
+        return;
+      }
+
+      await loadSupabaseData(activeClient);
+      setSupabaseMode('connected');
       setSyncLogs(prev => [
-        `Tabelas atualizadas em tempo real: empresas, licitacoes, atestados_tecnicos, documentos_repositorio, usuarios`,
-        `Status 200 OK - Sincronização executada com sucesso e renderizada na UI!`,
+        `Sincronização concluída com sucesso! Banco unificado e atualizado.`,
+        `Status 200 OK - Carregados usuários, empresas, editais e atestados.`,
         ...prev
       ]);
-      localStorage.setItem('proprocure_supabase_mode', 'connected');
-      localStorage.setItem('proprocure_supabase_url', supabaseUrl);
-      localStorage.setItem('proprocure_supabase_key', supabaseKey);
-      setSupabaseMode('connected');
-    } catch (e) {
-      setSyncLogs(prev => [`Erro de sincronização 500: falha ao buscar.`, ...prev]);
+    } catch (e: any) {
+      console.error(e);
+      setSyncLogs(prev => [`Falha ao sincronizar: ${e?.message || e}.`, ...prev]);
     }
     
     setIsSyncing(false);
@@ -2453,42 +2487,34 @@ export default function Home() {
                  </div>
 
                  <div>
-                    <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6">Supabase Sync</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       <input type="text" placeholder="URL do Supabase" value={supabaseUrl} onChange={e=>setSupabaseUrl(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
-                       <input type="password" placeholder="Chave Anônima" value={supabaseKey} onChange={e=>setSupabaseKey(e.target.value)} className="w-full p-2 border rounded text-sm focus:outline-none" style={{ borderColor: panelBorderColor }} />
-                    </div>
-                    <button
-                      onClick={async () => {
-                         const { getSupabase } = await import('@/lib/supabase');
-                         const client = getSupabase(supabaseUrl, supabaseKey);
-                         if (client) {
-                           await loadSupabaseData(client);
-                           localStorage.setItem('proprocure_supabase_url', supabaseUrl);
-                           localStorage.setItem('proprocure_supabase_key', supabaseKey);
-                           localStorage.setItem('proprocure_supabase_mode', 'connected');
-                           setSupabaseMode('connected');
-                           alert("Banco de dados sincronizado e conectado com sucesso!");
-                         } else {
-                           alert("Erro: Credenciais inválidas ou URL falhou.");
-                         }
-                      }}
-                      className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded shadow transition-all"
-                    >
-                      <Database className="w-4 h-4 inline-block mr-2" />
-                      Conectar e Sincronizar Banco
-                    </button>
+                    <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6 flex items-center gap-2">
+                      <Database className="w-4 h-4 text-emerald-600 animate-pulse" /> Integração Nativa Supabase
+                    </h3>
+                    <p className="text-xs text-slate-500 mb-4 max-w-xl">
+                      A conexão com a base de dados do Supabase agora é realizada de forma interna a partir das chaves em variáveis de ambiente <code className="px-1 py-0.5 bg-slate-100 rounded text-slate-700 font-mono text-[10px]">NEXT_PUBLIC_SUPABASE_URL</code> e <code className="px-1 py-0.5 bg-slate-100 rounded text-slate-700 font-mono text-[10px]">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>. Inputs manuais foram descontinuados para segurança empresarial robusta.
+                    </p>
                     
-                    {syncLogs.length > 0 && (
-                      <div className="mt-4 bg-slate-900 rounded border border-slate-700 p-4">
-                         <h4 className="text-xs text-slate-400 mb-2">Logs de Sincronização</h4>
-                         <div className="space-y-1">
-                           {syncLogs.slice(0, 3).map((log, idx) => (
-                             <div key={idx} className="text-[10px] text-emerald-400 font-mono">{log}</div>
-                           ))}
+                    <div className="p-4 bg-slate-50 border rounded-lg max-w-xl space-y-3" style={{ borderColor: panelBorderColor }}>
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-bold text-slate-600">Status do Banco de Dados:</span>
+                         {supabaseMode === 'connected' ? (
+                           <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Conectado & Sincronizado (Interno)
+                           </span>
+                         ) : (
+                           <span className="px-2.5 py-1 bg-slate-150 text-slate-600 rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 font-sans font-bold">
+                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400 font-bold"></span> Modo de Demonstração (Local)
+                           </span>
+                         )}
+                       </div>
+
+                       {supabaseMode === 'connected' && (
+                         <div className="text-[11px] text-slate-500 space-y-1 pt-2 border-t font-mono">
+                           <div><strong className="text-slate-600">Provedor Integrado:</strong> Supabase Cloud Server-to-Client</div>
+                           <div><strong className="text-slate-600">Host URL:</strong> {supabaseUrl ? `${supabaseUrl.substring(0, 35)}...` : 'Processado Seguro'}</div>
                          </div>
-                      </div>
-                    )}
+                       )}
+                    </div>
                  </div>
                  <div>
                     <h3 className="text-sm font-bold text-slate-800 mb-2 mt-6 flex items-center gap-2"><Database className="w-4 h-4 text-indigo-600" /> Histórico de Migrations SQL do Banco</h3>
