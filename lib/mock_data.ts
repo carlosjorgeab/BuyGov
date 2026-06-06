@@ -32,6 +32,15 @@ export interface Licitacao {
   resumo_edital?: string;
 }
 
+export interface DicionarioTermo {
+  id?: string;
+  chave_empresa: string;
+  termo: string;
+  categoria: string;
+  sinonimos?: string[];
+  ativo?: boolean;
+}
+
 export interface AtestadoItem {
   item_numero: number;
   descricao: string;

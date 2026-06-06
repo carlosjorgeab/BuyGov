@@ -51,9 +51,23 @@ CREATE TABLE IF NOT EXISTS public.licitacoes (
 -- Últimas alterações: Adicionar colunas caso já existam em bancos migrados
 ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_edital VARCHAR(100);
 ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_processo VARCHAR(100);
+ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS resumo_edital TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_licitacoes_chave_empresa ON public.licitacoes(chave_empresa);
 CREATE INDEX IF NOT EXISTS idx_licitacoes_status ON public.licitacoes(status);
+
+-- 4b. Dicionário de Termos de Licitação (Para extração de dados Inteligente e personalização)
+CREATE TABLE IF NOT EXISTS public.dicionario_parse_edital (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE NOT NULL,
+    termo VARCHAR(255) NOT NULL,
+    categoria VARCHAR(100) NOT NULL, -- e.g. 'Modalidade', 'Órgão', 'Atestado', 'Documento'
+    sinonimos TEXT[] DEFAULT '{}'::TEXT[],
+    ativo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_dicionario_chave ON public.dicionario_parse_edital(chave_empresa);
 
 
 -- 5. Atestados Técnicos (Company Technical Certificates)
@@ -143,7 +157,7 @@ VALUES
 ON CONFLICT (chave_empresa) DO NOTHING;
 
 -- Basic Demo Tenders
-INSERT INTO public.licitacoes (id, chave_empresa, modalidade, objeto, orgao, valor_estimado, prazo_proposta, prazo_abertura, documentos_obrigatorios, exigencias_atestados, status, checklist_itens, numero_edital, numero_processo)
+INSERT INTO public.licitacoes (id, chave_empresa, modalidade, objeto, orgao, valor_estimado, prazo_proposta, prazo_abertura, documentos_obrigatorios, exigencias_atestados, status, checklist_itens, numero_edital, numero_processo, resumo_edital)
 VALUES 
 (
     'e1111111-1111-1111-1111-111111111111', 
@@ -159,7 +173,8 @@ VALUES
     'Em Preparação',
     '[{"id": "c1", "label": "Certidão Federal Negativa", "checked": true}, {"id": "c2", "label": "Balanço Patrimonial", "checked": false}]'::JSONB,
     '45/2023',
-    'MS-10492/2023'
+    'MS-10492/2023',
+    'Licitação para requisição rápida de equipamentos médicos para emergência em massa UTI'
 ),
 (
     'e2222222-2222-2222-2222-222222222222', 
@@ -175,7 +190,8 @@ VALUES
     'Em Análise',
     '[]'::JSONB,
     '12/2023',
-    'PMSP-10023/2023'
+    'PMSP-10023/2023',
+    'Serviço estrutural focado em lajes e pintura municipal'
 ),
 (
     'e3333333-3333-3333-3333-333333333333', 
@@ -191,8 +207,17 @@ VALUES
     'Em Análise',
     '[]'::JSONB,
     '08/2024',
-    'TJSP-202401-209'
+    'TJSP-202401-209',
+    'Software licenças base cloud'
 )
+ON CONFLICT DO NOTHING;
+
+-- Initial Demo Dicionario
+INSERT INTO public.dicionario_parse_edital (chave_empresa, termo, categoria, sinonimos)
+VALUES 
+('LICITATECH', 'Balanço Patrimonial', 'Documento', ARRAY['Balanço Financeiro', 'Demonstração Contábil']),
+('LICITATECH', 'Inexigibilidade', 'Modalidade', ARRAY['Inexigível', 'Art. 74']),
+('LICITATECH', 'Secretaria da Saúde', 'Órgão', ARRAY['SES', 'Secretaria Estadual de Saúde'])
 ON CONFLICT DO NOTHING;
 
 -- Initial Demo Technical Certificates

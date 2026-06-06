@@ -72,7 +72,7 @@ import {
   INITIAL_CERTIFICATES,
   INITIAL_DOCUMENTS,
   EDITADO_TEXTS,
-  MatchAnalysisResult
+  MatchAnalysisResult, DicionarioTermo
 } from '@/lib/mock_data';
 
 const SQL_MIGRATION_SCRIPT = `-- SQL MIGRATIONS FOR BUYGOV TENDER AND COMPLIANCE SYSTEM
@@ -173,6 +173,7 @@ export default function Home() {
   const [licitacoes, setLicitacoes] = useState<Licitacao[]>([]);
   const [atestados, setAtestados] = useState<AtestadoTecnico[]>([]);
   const [documentos, setDocumentos] = useState<DocumentoBase[]>([]);
+  const [dicionario, setDicionario] = useState<DicionarioTermo[]>([]);
   const [activeCompanyKey, setActiveCompanyKey] = useState<string>('LICITATECH');
 
   // Active User and Login Session Checks
@@ -198,7 +199,7 @@ export default function Home() {
   const [secondsRemaining, setSecondsRemaining] = useState(15 * 60);
 
   // Active Nav Tab state
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'ajustes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'scanner' | 'atestados' | 'empresas' | 'usuarios' | 'dicionario' | 'ajustes'>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Supabase connection setting state
@@ -294,6 +295,9 @@ export default function Home() {
   const [editingCert, setEditingCert] = useState<AtestadoTecnico | null>(null);
   const [isAddingCert, setIsAddingCert] = useState(false);
 
+  const [editingTermo, setEditingTermo] = useState<DicionarioTermo | null>(null);
+  const [isAddingTermo, setIsAddingTermo] = useState(false);
+
   // Mock document uploading to Base Repository
   const [repoFileUploaded, setRepoFileUploaded] = useState(false);
 
@@ -319,13 +323,15 @@ export default function Home() {
         { data: dbEmpresas },
         { data: dbLicitacoes },
         { data: dbAtestados },
-        { data: dbDocumentos }
+        { data: dbDocumentos },
+        { data: dbDicionario }
       ] = await Promise.all([
         supabase.from('usuarios').select('*'),
         supabase.from('empresas').select('*'),
         supabase.from('licitacoes').select('*'),
         supabase.from('atestados_tecnicos').select('*'),
-        supabase.from('documentos_repositorio').select('*')
+        supabase.from('documentos_repositorio').select('*'),
+        supabase.from('dicionario_parse_edital').select('*')
       ]);
 
       if (dbUsuarios && dbUsuarios.length > 0) {
@@ -344,6 +350,7 @@ export default function Home() {
       if (dbLicitacoes && dbLicitacoes.length > 0) setLicitacoes(dbLicitacoes as any);
       if (dbAtestados && dbAtestados.length > 0) setAtestados(dbAtestados as any);
       if (dbDocumentos && dbDocumentos.length > 0) setDocumentos(dbDocumentos as any);
+      if (dbDicionario && dbDicionario.length > 0) setDicionario(dbDicionario as any);
     } catch (e) {
       console.error('Falha ao carregar do Supabase:', e);
     }
@@ -443,6 +450,7 @@ export default function Home() {
       case 'empresas': return !!userProfile.empresas;
       case 'usuarios': return !!userProfile.usuarios_perfis;
       case 'ajustes': return !!userProfile.ajustes;
+      case 'dicionario': return !!userProfile.ajustes;
       default: return false;
     }
   };
@@ -484,16 +492,16 @@ export default function Home() {
   };
 
   // Re-login trigger
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const inputs = e.currentTarget.querySelectorAll('input');
-    const login = inputs[0]?.value.trim();
-    const password = inputs[1]?.value.trim();
+    const formData = new FormData(e.currentTarget);
+    const login = (formData.get('login') as string || '').trim();
+    const password = (formData.get('password') as string || '').trim();
     
     const user = usuarios.find(u => 
       (u.email && u.email.toLowerCase().trim() === login.toLowerCase().trim()) ||
       (u.nome && u.nome.toLowerCase().trim() === login.toLowerCase().trim()) ||
-      (u.email === 'admin' && login.toLowerCase().trim() === 'admin')
+      (login.toLowerCase().trim() === 'admin' && (u.email === 'admin' || u.nome === 'Administrador Geral'))
     );
     
     if (!user) {
@@ -943,7 +951,7 @@ export default function Home() {
       const response = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, text: docText })
+        body: JSON.stringify({ action, text: docText, dicionario })
       }).catch((err) => {
         throw new Error("Failed to fetch (Falha de conexão com a API)");
       });
@@ -1039,7 +1047,7 @@ export default function Home() {
   };
 
   // Helper template inserter
-  const applyImportedScannerToBids = () => {
+  const applyImportedScannerToBids = async () => {
     const dataToSave = editableScannerResult || scannerResult;
     if (!dataToSave) return;
 
@@ -1074,6 +1082,9 @@ export default function Home() {
       numero_processo: dataToSave.numero_processo || "",
       resumo_edital: dataToSave.resumo_edital || ""
     };
+
+    const supabase = getSupabaseClient();
+    if (supabase) await supabase.from('licitacoes').insert([{ ...freshLicitacao, created_at: undefined }]);
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
 
@@ -1211,6 +1222,7 @@ export default function Home() {
               <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">E-mail ou Login</label>
               <input
                 type="text"
+                name="login"
                 required
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                 placeholder="exemplo@empresa.com.br ou 'admin'"
@@ -1222,6 +1234,7 @@ export default function Home() {
               <label className="block text-xs font-semibold text-emerald-800 uppercase tracking-tight">Senha</label>
               <input
                 type="password"
+                name="password"
                 required
                 placeholder="Sua senha corporativa"
                 className="w-full mt-1 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
@@ -1325,7 +1338,13 @@ export default function Home() {
           )})}
 
           {hasTabPermission('ajustes') && (
-            <div className="pt-6 pb-2">
+            <div className="pt-6 pb-2 space-y-2">
+              <button 
+               onClick={() => setActiveTab('dicionario' as any)} 
+               className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'dicionario' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>
+                <Database className="w-4 h-4 shrink-0 stroke-2" />
+                <span>Dicionário de Termos IA</span>
+              </button>
               <button 
                onClick={() => setActiveTab('ajustes')} 
                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-lg transition-all ${activeTab === 'ajustes' ? 'bg-emerald-500/20 text-emerald-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>
@@ -2172,6 +2191,55 @@ export default function Home() {
             </motion.div>
           )}
 
+          {/* DICIONARIO */}
+          {activeTab === 'dicionario' && (
+            <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+              <div className="flex justify-between items-end border-b pb-4" style={{ borderColor: panelBorderColor }}>
+                 <div>
+                   <h2 className="text-2xl font-bold tracking-tight text-slate-800 flex items-center gap-2"><Database className="text-emerald-600" /> Dicionário Base de IA</h2>
+                   <p className="text-sm text-slate-500 font-medium">Cadastre variações de termos e documentos para refinar ativamente a extração inteligente da IA nos próximos editais</p>
+                 </div>
+                 <button onClick={() => setIsAddingTermo(true)} className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold shadow-sm transition-transform hover:-translate-y-0.5" style={{ backgroundColor: primaryColor }}>
+                    <Plus className="w-4 h-4" /> Cadastrar Novo Termo
+                 </button>
+              </div>
+
+              <div className="bg-white rounded-xl border p-6 shadow-sm overflow-hidden" style={{ borderColor: panelBorderColor }}>
+                 <table className="w-full text-left border-collapse text-sm">
+                   <thead>
+                     <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                       <th className="pb-3 px-2">Categoria</th>
+                       <th className="pb-3 px-2">Termo Oficial</th>
+                       <th className="pb-3 px-2">Sinônimos / Variações de Leitura</th>
+                       <th className="pb-3 px-2">Ação</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                     {dicionario.map((term, i) => (
+                       <tr key={term.id || i} className="hover:bg-slate-50/50">
+                         <td className="py-4 px-2">
+                            <span className="px-2 py-0.5 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full font-sans uppercase">
+                               {term.categoria}
+                            </span>
+                         </td>
+                         <td className="py-4 px-2 font-bold text-slate-700">{term.termo}</td>
+                         <td className="py-4 px-2 text-slate-500 font-medium">{term.sinonimos?.join(", ") || "Nenhum cadastrado"}</td>
+                         <td className="py-4 px-2 text-right text-xs">
+                            <button className="text-emerald-600 font-bold hover:text-emerald-800" onClick={() => setEditingTermo(term)}>Editar</button>
+                         </td>
+                       </tr>
+                     ))}
+                     {dicionario.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="py-12 text-center text-slate-400 font-medium text-sm">Nenhum termo inteligente definido na base.</td>
+                        </tr>
+                     )}
+                   </tbody>
+                 </table>
+              </div>
+            </motion.div>
+          )}
+
           {/* AJUSTES */}
           {activeTab === 'ajustes' && (
             <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
@@ -2230,7 +2298,7 @@ export default function Home() {
 
 
           {/* CRUD Modals Wrapper */}
-          {Object.values([isAddingCompany, isAddingUser, isAddingCert, isAddingBid, !!selectedBidDetail]).some(Boolean) && (
+          {Object.values([isAddingCompany, isAddingUser, isAddingCert, isAddingBid, !!selectedBidDetail, !!editingTermo, isAddingTermo]).some(Boolean) && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-auto">
               {/* Company Modal */}
               {isAddingCompany && (
@@ -2434,6 +2502,74 @@ export default function Home() {
                         Fechar Registro
                       </button>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Dicionario Modal */}
+              {(isAddingTermo || !!editingTermo) && (
+                <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md m-auto animate-in fade-in zoom-in-95 duration-200 text-left">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-slate-800">{isAddingTermo ? 'Novo Termo IA' : 'Editar Termo IA'}</h3>
+                    <button onClick={() => { setIsAddingTermo(false); setEditingTermo(null); }} className="p-1 hover:bg-slate-100 rounded-full text-slate-500"><X className="w-5 h-5"/></button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Categoria do Termo</label>
+                      <select 
+                        defaultValue={editingTermo?.categoria || 'Modalidade'}
+                        id="termoCategoria"
+                        className="w-full border p-2 rounded focus:outline-none text-sm bg-white"
+                      >
+                        <option value="Modalidade">Modalidade</option>
+                        <option value="Órgão">Órgão Público</option>
+                        <option value="Atestado">Exigência Técnica / Atestado</option>
+                        <option value="Documento">Documento de Habilitação</option>
+                        <option value="Outro">Outro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Termo Principal (Oficial)</label>
+                      <input id="termoNome" type="text" defaultValue={editingTermo?.termo || ''} className="w-full border p-2 rounded focus:outline-none text-sm" placeholder="Ex: Balanço Patrimonial" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 mb-1">Sinônimos e Variações (Separados por vírgula)</label>
+                      <textarea id="termoSinonimos" defaultValue={editingTermo?.sinonimos?.join(", ") || ''} className="w-full border p-2 rounded focus:outline-none text-sm h-20" placeholder="Ex: Balanço Financeiro, Demonstração Contábil"></textarea>
+                    </div>
+                    <button 
+                      onClick={async () => {
+                        const categoria = (document.getElementById('termoCategoria') as HTMLSelectElement).value;
+                        const termo = (document.getElementById('termoNome') as HTMLInputElement).value;
+                        const sinonimosRaw = (document.getElementById('termoSinonimos') as HTMLTextAreaElement).value;
+                        const sinonimos = sinonimosRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+                        if (!termo) return alert("Informe o termo.");
+
+                        const updatedOrNewData = {
+                          categoria,
+                          termo,
+                          sinonimos,
+                          chave_empresa: 'LICITATECH' // hardcoded mock scope for user
+                        };
+
+                        const supabase = getSupabaseClient();
+
+                        if (isAddingTermo) {
+                          const freshTermo = { id: crypto.randomUUID(), ...updatedOrNewData, ativo: true };
+                          if (supabase) await supabase.from('dicionario_parse_edital').insert([{ ...freshTermo, created_at: undefined }]);
+                          setDicionario([freshTermo, ...dicionario]);
+                        } else if (editingTermo) {
+                          const updatedTerm = { ...editingTermo, ...updatedOrNewData };
+                          if (supabase) await supabase.from('dicionario_parse_edital').update({ ...updatedOrNewData }).eq('id', editingTermo.id);
+                          setDicionario(dicionario.map(t => t.id === editingTermo.id ? updatedTerm : t));
+                        }
+
+                        setIsAddingTermo(false);
+                        setEditingTermo(null);
+                      }} 
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded mt-4">
+                      {isAddingTermo ? 'Cadastrar Termo' : 'Salvar Alterações'}
+                    </button>
                   </div>
                 </div>
               )}

@@ -13,7 +13,7 @@ const ai = new GoogleGenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { action, text, tenderData, certsData } = await req.json();
+    const { action, text, tenderData, certsData, dicionario } = await req.json();
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
@@ -23,7 +23,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "parse_tender") {
-      const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada. Procure por todos os termos e variações possíveis de uma licitação para encontrar as informações corretas.
+      let dicionarioContext = "";
+      if (dicionario && dicionario.length > 0) {
+        dicionarioContext = "\nDICIONÁRIO DE TERMOS (Contexto auxiliar para reconhecimento):\n";
+        dicionario.forEach((d: any) => {
+          dicionarioContext += `- Categoria: ${d.categoria} | Termo: "${d.termo}" | Sinônimos/Variações possíveis: ${d.sinonimos?.join(", ")}\n`;
+        });
+        dicionarioContext += "Utilize este dicionário prioritariamente para correlacionar corretamente categorias do Edital como Órgão, Modalidade, Documentos de Habilitação ou Prazos.\n\n";
+      }
+
+      const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada. Procure por todos os termos e variações possíveis de uma licitação para encontrar as informações corretas.${dicionarioContext}
 Texto do Edital:
 "${text}"
 
