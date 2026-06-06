@@ -34,82 +34,81 @@ export async function POST(req: NextRequest) {
 
       const prompt = `Analise o texto extraído do Edital de Licitação abaixo e retorne um objeto JSON contendo as informações de forma estruturada. Procure por todos os termos e variações possíveis de uma licitação para encontrar as informações corretas.${dicionarioContext}
 Texto do Edital:
-"${text}"
-
-Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
-{
-  "numero_processo": "Número ou código do processo administrativo se encontrado (ex: 23154.00012/2023-11)",
-  "numero_edital": "O número de identificação do pregão/edital se aplicável (ex: 45/2023)",
-  "modalidade": "Pregão Eletrônico, Concorrência, Tomada de Preços, Inexigibilidade, Dispensa, ou outro",
-  "orgao": "Nome completo do órgão licitante / contratante",
-  "objeto": "Título ou objeto comercial exato da licitação",
-  "resumo_edital": "Resumo analítico focado e objetivo do edital (o que estão comprando, quantidades, local de entrega, se há cotas, etc)",
-  "valor_estimado": 1250000.00,
-  "prazo_proposta": "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
-  "prazo_abertura": "data e hora da sessão no formato YYYY-MM-DD HH:mm (estime ano se faltar)",
-  "documentos_obrigatorios": ["Documento 1", "Documento 2", "Certidão X"],
-  "exigencias_atestados": "Frase resumida das exigências qualitativas ou quantitativas de atestados de capacidade técnica do edital"
-}`;
+"${text}"`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              numero_processo: { type: Type.STRING, description: "Número ou código do processo administrativo se encontrado" },
+              numero_edital: { type: Type.STRING, description: "O número de identificação do pregão/edital se aplicável" },
+              modalidade: { type: Type.STRING, description: "Pregão Eletrônico, Concorrência, Tomada de Preços, Inexigibilidade, Dispensa, ou outro" },
+              orgao: { type: Type.STRING, description: "Nome completo do órgão licitante / contratante" },
+              objeto: { type: Type.STRING, description: "Título ou objeto comercial exato da licitação" },
+              resumo_edital: { type: Type.STRING, description: "Resumo analítico focado e objetivo do edital" },
+              valor_estimado: { type: Type.NUMBER, description: "Valor numérico estimado ou teto" },
+              prazo_proposta: { type: Type.STRING, description: "data e hora limite de envio de propostas no formato YYYY-MM-DD HH:mm" },
+              prazo_abertura: { type: Type.STRING, description: "data e hora da sessão no formato YYYY-MM-DD HH:mm" },
+              documentos_obrigatorios: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de documentos de habilitação requeridos" },
+              exigencias_atestados: { type: Type.STRING, description: "Frase resumida das exigências qualitativas ou quantitativas de atestados" }
+            },
+            required: [
+              "numero_processo", "numero_edital", "modalidade", "orgao", "objeto", 
+              "resumo_edital", "valor_estimado", "prazo_proposta", "prazo_abertura", 
+              "documentos_obrigatorios", "exigencias_atestados"
+            ]
+          },
           systemInstruction: "Você é um especialista em licitações públicas brasileiras e formatação de dados estruturados em JSON.",
         },
       });
 
       const resultText = response.text || "{}";
-      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      try {
-        return NextResponse.json(JSON.parse(cleanJson));
-      } catch (jsonErr) {
-        const match = cleanJson.match(/\{[\s\S]*\}/);
-        if (match) return NextResponse.json(JSON.parse(match[0]));
-        throw jsonErr;
-      }
+      return NextResponse.json(JSON.parse(resultText));
     }
 
     if (action === "parse_certificate") {
       const prompt = `Analise o texto extraído do Atestado de Capacidade Técnica abaixo e retorne um objeto JSON contendo informações extraídas de forma estruturada, com itens linha a linha detalhados.
-"${text}"
-
-Retorne RIGOROSAMENTE as seguintes chaves no formato JSON:
-{
-  "nome_atestado": "Título identificador curto do atestado",
-  "orgao_emissor": "Empresa ou Órgão Público que assinou o atestado",
-  "data_emissao": "Data de emissão no formato YYYY-MM-DD",
-  "observacoes": "Resumo rápido de relevância",
-  "itens": [
-    {
-      "item_numero": 1,
-      "descricao": "Descrição clara dos serviços executados (ex: fornecimento de x monitores)",
-      "quantidade": 150.00,
-      "unidade": "un, m2, h, km, etc",
-      "relevancia_tecnica": "Alta, Média ou Baixa"
-    }
-  ]
-}`;
+"${text}"`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              nome_atestado: { type: Type.STRING },
+              orgao_emissor: { type: Type.STRING },
+              data_emissao: { type: Type.STRING, description: "Formato YYYY-MM-DD" },
+              observacoes: { type: Type.STRING },
+              itens: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    item_numero: { type: Type.NUMBER },
+                    descricao: { type: Type.STRING },
+                    quantidade: { type: Type.NUMBER },
+                    unidade: { type: Type.STRING },
+                    relevancia_tecnica: { type: Type.STRING }
+                  },
+                  required: ["item_numero", "descricao", "quantidade", "unidade", "relevancia_tecnica"]
+                }
+              }
+            },
+            required: ["nome_atestado", "orgao_emissor", "data_emissao", "observacoes", "itens"]
+          },
           systemInstruction: "Você é um especialista em análise de atestados técnicos de acervo e engenharia ou prestação de serviços com formatação JSON.",
         },
       });
 
       const resultText = response.text || "{}";
-      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      try {
-        return NextResponse.json(JSON.parse(cleanJson));
-      } catch (jsonErr) {
-        const match = cleanJson.match(/\{[\s\S]*\}/);
-        if (match) return NextResponse.json(JSON.parse(match[0]));
-        throw jsonErr;
-      }
+      return NextResponse.json(JSON.parse(resultText));
     }
 
     if (action === "analyze_compatibility") {
@@ -127,43 +126,46 @@ DADOS DO EDITAL:
 ATESTADOS TÉCNICOS DISPONÍVEIS NA EMPRESA:
 ${JSON.stringify(certsData, null, 2)}
 
-Analise se os itens executados listados nos atestados atendem quantitativamente ou qualitativamente às exigências descritas no Edital. Calcule um score matemático estimado de aderência técnica (de 0 a 100).
-
-Retorne rigorosamente no formato JSON com os seguintes campos sem adicionar comentários:
-{
-  "score_aderencia": 85,
-  "elegibilidade": "Escolha entre: Altamente Recomendável, Possível com Riscos, ou Não Elegível",
-  "justificativa": "Texto explicativo detalhado sobre os atestados apresentados que cobrem e fundamentam a participação",
-  "pontos_fortes": ["Explicar qual atestado e item comprova satisfatoriamente cada requisito"],
-  "pontos_atencao": ["Quais requisitos do edital não têm comprovação exata ou representam gap de quantidade/exigência"],
-  "checklist_verificação": [
-    {
-      "item": "Requisito X",
-      "status": "Escolha entre: Atendido, Parcialmente Atendido, ou Não Atendido",
-      "detalhe": "Comprovado via Atestado Y"
-    }
-  ],
-  "recomendacao_final": "Parecer consultivo final de ação para a diretoria comercial."
-}`;
+Analise se os itens executados listados nos atestados atendem quantitativamente ou qualitativamente às exigências descritas no Edital. Calcule um score matemático estimado de aderência técnica (de 0 a 100).`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              score_aderencia: { type: Type.NUMBER },
+              elegibilidade: { type: Type.STRING },
+              justificativa: { type: Type.STRING },
+              pontos_fortes: { type: Type.ARRAY, items: { type: Type.STRING } },
+              pontos_atencao: { type: Type.ARRAY, items: { type: Type.STRING } },
+              checklist_verificação: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    item: { type: Type.STRING },
+                    status: { type: Type.STRING },
+                    detalhe: { type: Type.STRING }
+                  },
+                  required: ["item", "status", "detalhe"]
+                }
+              },
+              recomendacao_final: { type: Type.STRING }
+            },
+            required: [
+              "score_aderencia", "elegibilidade", "justificativa", "pontos_fortes", 
+              "pontos_atencao", "checklist_verificação", "recomendacao_final"
+            ]
+          },
           systemInstruction: "Você é um consultor sênior de licitações públicas com conhecimento analítico avançado de editais e aptidões jurídicas/técnicas.",
         },
       });
 
       const resultText = response.text || "{}";
-      let cleanJson = resultText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      try {
-        return NextResponse.json(JSON.parse(cleanJson));
-      } catch (jsonErr) {
-        const match = cleanJson.match(/\{[\s\S]*\}/);
-        if (match) return NextResponse.json(JSON.parse(match[0]));
-        throw jsonErr;
-      }
+      return NextResponse.json(JSON.parse(resultText));
     }
 
     return NextResponse.json({ error: "Ação inválida ou não especificada." }, { status: 400 });

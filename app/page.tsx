@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase, supabaseUrl as configUrl, supabaseKey as configKey } from '@/lib/supabase';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -75,20 +75,21 @@ import {
   MatchAnalysisResult, DicionarioTermo
 } from '@/lib/mock_data';
 
-const SQL_MIGRATION_SCRIPT = `-- SQL MIGRATIONS FOR BUYGOV TENDER AND COMPLIANCE SYSTEM
--- ATUALIZAÇÃO RECENTE: SEPARAÇÃO COMPLETA DE CADASTRO DE PERFIL E USUÁRIO
+const SQL_MIGRATION_SCRIPT = `-- SQL MIGRATIONS FOR PROPROCURE SYSTEM
+-- COMPREHENSIVE SCHEMA UPDATE
 
 -- 1. Tabela de Empresas
 CREATE TABLE IF NOT EXISTS public.empresas (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     chave_empresa VARCHAR(50) UNIQUE NOT NULL,
-    cnpj VARCHAR(20) NOT NULL
+    cnpj VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 2. Tabela de Perfis de Acesso (Módulos dinâmicos configuráveis)
+-- 2. Tabela de Perfis de Acesso
 CREATE TABLE IF NOT EXISTS public.perfis_acesso (
-    id VARCHAR(100) PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     dashboard BOOLEAN DEFAULT true,
     agenda BOOLEAN DEFAULT true,
@@ -102,27 +103,67 @@ CREATE TABLE IF NOT EXISTS public.perfis_acesso (
 
 -- 3. Tabela de Usuários Corporativos
 CREATE TABLE IF NOT EXISTS public.usuarios (
-    email VARCHAR(255) PRIMARY KEY,
+    email TEXT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     senha VARCHAR(255) NOT NULL,
-    perfil_id VARCHAR(100) REFERENCES public.perfis_acesso(id) ON DELETE SET NULL,
-    chave_empresa VARCHAR(50), -- Chave da empresa vinculada ou 'ALL' para admin geral
+    perfil_id TEXT REFERENCES public.perfis_acesso(id) ON DELETE SET NULL,
+    chave_empresa VARCHAR(50), 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 -- 4. Tabela de Licitações (Tenders)
 CREATE TABLE IF NOT EXISTS public.licitacoes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     chave_empresa VARCHAR(50) REFERENCES empresas(chave_empresa) ON DELETE CASCADE,
     modalidade VARCHAR(100),
     objeto TEXT,
+    orgao VARCHAR(255),
     valor_estimado NUMERIC(15,2),
-    prazo_proposta TIMESTAMP WITH TIME ZONE,
+    prazo_proposta TEXT,
+    prazo_abertura TEXT,
+    documentos_obrigatorios JSONB DEFAULT '[]',
+    exigencias_atestados TEXT,
     status VARCHAR(50),
+    checklist_itens JSONB DEFAULT '[]',
+    numero_edital VARCHAR(100),
+    numero_processo VARCHAR(100),
+    resumo_edital TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- 5. Carga de Dados Inicial de Segurança (Seed)
+-- 5. Tabela de Atestados Técnicos
+CREATE TABLE IF NOT EXISTS public.atestados_tecnicos (
+    id TEXT PRIMARY KEY,
+    chave_empresa VARCHAR(50) REFERENCES empresas(chave_empresa) ON DELETE CASCADE,
+    nome_atestado VARCHAR(255) NOT NULL,
+    orgao_emissor VARCHAR(255) NOT NULL,
+    data_emissao TEXT,
+    observacoes TEXT,
+    itens JSONB DEFAULT '[]',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. Tabela de Dicionário de Termos
+CREATE TABLE IF NOT EXISTS public.dicionario_parse_edital (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chave_empresa VARCHAR(50),
+    termo TEXT NOT NULL,
+    categoria VARCHAR(100),
+    sinonimos JSONB DEFAULT '[]',
+    ativo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 7. Tabela de Documentos Repositório
+CREATE TABLE IF NOT EXISTS public.documentos_repositorio (
+    id TEXT PRIMARY KEY,
+    nome_arquivo TEXT NOT NULL,
+    tag VARCHAR(100),
+    validade TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. Seed Data
 INSERT INTO public.perfis_acesso (id, nome, dashboard, agenda, scanner, atestados, empresas, usuarios_perfis, ajustes)
 VALUES 
   ('perfil-admin', 'Administrador Geral', true, true, true, true, true, true, true),
@@ -148,10 +189,14 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   senha = EXCLUDED.senha,
   perfil_id = EXCLUDED.perfil_id,
-  chave_empresa = EXCLUDED.chave_empresa;`;
+  chave_empresa = EXCLUDED.chave_empresa;
+`;
 
 // Pure external ID helper to avoid render side-effects and satisfy React purity parameters
 function generateGuid(prefix = '') {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+    return prefix + window.crypto.randomUUID();
+  }
   const uniq = Math.floor(Math.random() * 10000000).toString(36);
   return `${prefix}${uniq}`;
 }
@@ -203,8 +248,8 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Supabase connection setting state
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseKey, setSupabaseKey] = useState('');
+  const [supabaseUrl, setSupabaseUrl] = useState(configUrl);
+  const [supabaseKey, setSupabaseKey] = useState(configKey);
   const [supabaseMode, setSupabaseMode] = useState<'offline' | 'connected'>('offline');
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -313,83 +358,99 @@ export default function Home() {
 
 
   // --- SUPABASE INITIAL LOAD & SYNCS ---
-  const loadSupabaseData = async (url: string, key: string) => {
-    if (!url || !key) return;
+  const loadSupabaseData = useCallback(async (clientOverride?: any) => {
+    const client = clientOverride || supabase;
+    if (!client) {
+      // If no valid client, we might be in offline mode or waiting for setup
+      if (supabaseMode === 'offline') {
+        setUsuarios(INITIAL_USERS);
+        setEmpresas(INITIAL_COMPANIES);
+        setLicitacoes(INITIAL_BIDS);
+        setAtestados(INITIAL_CERTIFICATES);
+        setDocumentos(INITIAL_DOCUMENTS);
+        // setDicionario([]);
+        setPerfis(INITIAL_PROFILES);
+        setStateLoaded(true);
+      }
+      return;
+    }
+
     try {
-      const supabase = createClient(url, key);
-      
+      setIsSyncing(true);
       const [
-        { data: dbUsuarios },
-        { data: dbEmpresas },
-        { data: dbLicitacoes },
-        { data: dbAtestados },
-        { data: dbDocumentos },
-        { data: dbDicionario }
+        { data: dbUsuarios, error: errU },
+        { data: dbEmpresas, error: errE },
+        { data: dbLicitacoes, error: errL },
+        { data: dbAtestados, error: errA },
+        { data: dbDocumentos, error: errD },
+        { data: dbDicionario, error: errDic },
+        { data: dbPerfis, error: errP }
       ] = await Promise.all([
-        supabase.from('usuarios').select('*'),
-        supabase.from('empresas').select('*'),
-        supabase.from('licitacoes').select('*'),
-        supabase.from('atestados_tecnicos').select('*'),
-        supabase.from('documentos_repositorio').select('*'),
-        supabase.from('dicionario_parse_edital').select('*')
+        client.from('usuarios').select('*'),
+        client.from('empresas').select('*'),
+        client.from('licitacoes').select('*'),
+        client.from('atestados_tecnicos').select('*'),
+        client.from('documentos_repositorio').select('*'),
+        client.from('dicionario_parse_edital').select('*'),
+        client.from('perfis_acesso').select('*')
       ]);
 
-      if (dbUsuarios && dbUsuarios.length > 0) {
-        setUsuarios(dbUsuarios);
-      } else {
-        setUsuarios([{
-          email: 'admin',
-          nome: 'Administrador Geral',
-          senha: 'Cjl@j2326082110', // using hardcoded local login standard for admin
-          perfilId: 'perfil-admin',
-          chave_empresa: 'ALL'
-        } as any]);
-      }
+      if (errU) console.error('Erro usuários:', errU);
+      if (errE) console.error('Erro empresas:', errE);
+      if (errL) console.error('Erro licitações:', errL);
+      if (errA) console.error('Erro atestados:', errA);
+      if (errDic) console.error('Erro dicionário:', errDic);
+      if (errP) console.error('Erro perfis:', errP);
 
-      if (dbEmpresas && dbEmpresas.length > 0) setEmpresas(dbEmpresas as any);
-      if (dbLicitacoes && dbLicitacoes.length > 0) setLicitacoes(dbLicitacoes as any);
-      if (dbAtestados && dbAtestados.length > 0) setAtestados(dbAtestados as any);
-      if (dbDocumentos && dbDocumentos.length > 0) setDocumentos(dbDocumentos as any);
-      if (dbDicionario && dbDicionario.length > 0) setDicionario(dbDicionario as any);
+      if (dbUsuarios) setUsuarios(dbUsuarios);
+      if (dbEmpresas) setEmpresas(dbEmpresas as any);
+      if (dbLicitacoes) setLicitacoes(dbLicitacoes as any);
+      if (dbAtestados) setAtestados(dbAtestados as any);
+      if (dbDocumentos) setDocumentos(dbDocumentos as any);
+      if (dbDicionario) setDicionario(dbDicionario as any);
+      if (dbPerfis && dbPerfis.length > 0) setPerfis(dbPerfis as any);
+      else setPerfis(INITIAL_PROFILES);
+
+      setStateLoaded(true);
     } catch (e) {
-      console.error('Falha ao carregar do Supabase:', e);
+      console.error('Falha crítica ao carregar do Supabase:', e);
+    } finally {
+      setIsSyncing(false);
     }
-  };
+  }, [supabaseMode]);
 
   const getSupabaseClient = () => {
-    const u = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const k = supabaseKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (u && k) return createClient(u, k);
-    return null;
+    return supabase;
   };
 
   useEffect(() => {
     const token = generateGuid();
     localStorage.setItem('proprocure_session_token', token);
 
-    const timer = setTimeout(() => {
+    const checkAuth = async () => {
       setSessionToken(token);
-
-      // We still mock profiles config statically since it's not a root table
-      setPerfis(INITIAL_PROFILES);
-
-      const savedUrl = localStorage.getItem('proprocure_supabase_url') || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-      const savedKey = localStorage.getItem('proprocure_supabase_key') || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-      const savedMode = localStorage.getItem('proprocure_supabase_mode') || 'connected';
       
-      setSupabaseUrl(savedUrl);
-      setSupabaseKey(savedKey);
-      setSupabaseMode(savedMode as 'offline' | 'connected');
+      const savedMode = localStorage.getItem('proprocure_supabase_mode') as any || (supabase ? 'connected' : 'offline');
+      setSupabaseMode(savedMode);
 
-      if (savedUrl && savedKey) {
-        loadSupabaseData(savedUrl, savedKey);
+      await loadSupabaseData();
+      
+      // Look for persisted login
+      const savedUser = localStorage.getItem('proprocure_logged_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.email) {
+            setCurrentUser(parsed);
+            setIsLoggedIn(true);
+            setSecondsRemaining(timeoutMinutes * 60);
+          }
+        } catch(e) {}
       }
+    };
 
-      setStateLoaded(true);
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, []);
+    checkAuth();
+  }, [loadSupabaseData, timeoutMinutes]);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -465,7 +526,9 @@ export default function Home() {
     setSyncLogs(prev => ["Conectando ativamente com o banco Supabase em modo nativo...", ...prev]);
 
     try {
-      await loadSupabaseData(supabaseUrl, supabaseKey);
+      const { getSupabase } = await import('@/lib/supabase');
+      const tempClient = getSupabase(supabaseUrl, supabaseKey);
+      await loadSupabaseData(tempClient);
       setSyncLogs(prev => [
         `Tabelas atualizadas em tempo real: empresas, licitacoes, atestados_tecnicos, documentos_repositorio, usuarios`,
         `Status 200 OK - Sincronização executada com sucesso e renderizada na UI!`,
@@ -515,6 +578,7 @@ export default function Home() {
     }
     
     setCurrentUser(user);
+    localStorage.setItem('proprocure_logged_user', JSON.stringify(user));
     if (user.email.toLowerCase().trim() === 'admin') {
       // General admin can always switch and see all companies
       setActiveCompanyKey('LICITATECH');
@@ -550,6 +614,7 @@ export default function Home() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    localStorage.removeItem('proprocure_logged_user');
   };
 
   const handleAddUser = async () => {
@@ -574,7 +639,16 @@ export default function Home() {
     ];
 
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('usuarios').insert([{ email: newUserEmail.trim(), nome: newUserName, senha: newUserPassword, perfil: 'Analista', chave_empresa: newUserCompanyKey || 'LICITATECH' }]);
+    if (supabase) {
+      const { error } = await supabase.from('usuarios').insert([{ email: newUserEmail.trim(), nome: newUserName, senha: newUserPassword, perfil_id: newUserProfileId, chave_empresa: newUserCompanyKey || 'LICITATECH' }]);
+      if (error) {
+        alert("Erro ao salvar usuário no banco: " + error.message);
+        return;
+      }
+    } else if (supabaseMode === 'connected') {
+      alert("Erro: Banco de dados não conectado.");
+      return;
+    }
 
     setUsuarios(nextList);
     setNewUserEmail('');
@@ -587,7 +661,13 @@ export default function Home() {
 
   const handleSaveEditUser = async (updatedUser: PerfilUsuario) => {
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('usuarios').update({ nome: updatedUser.nome, chave_empresa: updatedUser.chave_empresa }).eq('email', updatedUser.email.trim());
+    if (supabase) {
+      const { error } = await supabase.from('usuarios').update({ nome: updatedUser.nome, chave_empresa: updatedUser.chave_empresa, perfil_id: updatedUser.perfilId }).eq('email', updatedUser.email.trim());
+      if (error) {
+        alert("Erro ao atualizar usuário: " + error.message);
+        return;
+      }
+    }
     setUsuarios(usuarios.map(u => u.email.toLowerCase().trim() === updatedUser.email.toLowerCase().trim() ? updatedUser : u));
     setEditingUser(null);
   };
@@ -643,7 +723,13 @@ export default function Home() {
       cnpj: newCompanyCnpj
     };
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('empresas').insert([{ ...fresh, created_at: undefined }]);
+    if (supabase) {
+      const { error } = await supabase.from('empresas').insert([{ ...fresh, created_at: undefined }]);
+      if (error) {
+        alert("Erro ao salvar empresa: " + error.message);
+        return;
+      }
+    }
     setEmpresas([...empresas, fresh]);
     setNewCompanyName('');
     setNewCompanyKey('');
@@ -654,7 +740,13 @@ export default function Home() {
 
   const handleSaveEditCompany = async (updatedCompany: Empresa) => {
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('empresas').update(updatedCompany).eq('id', updatedCompany.id);
+    if (supabase) {
+      const { error } = await supabase.from('empresas').update(updatedCompany).eq('id', updatedCompany.id);
+      if (error) {
+        alert("Erro ao salvar empresa: " + error.message);
+        return;
+      }
+    }
     setEmpresas(empresas.map(e => e.id === updatedCompany.id ? updatedCompany : e));
     setEditingCompany(null);
   };
@@ -686,7 +778,13 @@ export default function Home() {
     };
 
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('licitacoes').insert([{ ...freshLicitacao, created_at: undefined }]);
+    if (supabase) {
+      const { error } = await supabase.from('licitacoes').insert([{ ...freshLicitacao, created_at: undefined }]);
+      if (error) {
+        alert("Erro ao salvar licitação: " + error.message);
+        return;
+      }
+    }
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
     setIsAddingBid(false);
@@ -699,7 +797,13 @@ export default function Home() {
 
   const handleSaveEditBid = async (updatedBid: Licitacao) => {
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('licitacoes').update({ ...updatedBid, created_at: undefined }).eq('id', updatedBid.id);
+    if (supabase) {
+      const { error } = await supabase.from('licitacoes').update({ ...updatedBid, created_at: undefined }).eq('id', updatedBid.id);
+      if (error) {
+        alert("Erro ao atualizar licitação: " + error.message);
+        return;
+      }
+    }
     setLicitacoes(licitacoes.map(b => b.id === updatedBid.id ? updatedBid : b));
     setEditingBid(null);
   };
@@ -707,7 +811,13 @@ export default function Home() {
   const handleDeleteBid = async (id: string) => {
     if (confirm("Confirmar exclusão deste edital?")) {
       const supabase = getSupabaseClient();
-      if (supabase) await supabase.from('licitacoes').delete().eq('id', id);
+      if (supabase) {
+        const { error } = await supabase.from('licitacoes').delete().eq('id', id);
+        if (error) {
+          alert("Erro ao excluir: " + error.message);
+          return;
+        }
+      }
       setLicitacoes(licitacoes.filter(b => b.id !== id));
     }
   };
@@ -773,8 +883,11 @@ export default function Home() {
     const supabase = getSupabaseClient();
     if (supabase) {
       const { itens, ...certData } = freshCert;
-      await supabase.from('atestados_tecnicos').insert([{ ...certData, created_at: undefined }]);
-      // We assume items would be inserted into 'atestados_itens', we skip full relational insert for UI brevity matching original local state.
+      const { error } = await supabase.from('atestados_tecnicos').insert([{ ...certData, created_at: undefined }]);
+      if (error) {
+        alert("Erro ao salvar atestado: " + error.message);
+        return;
+      }
     }
 
     setAtestados([...atestados, freshCert]);
@@ -791,7 +904,11 @@ export default function Home() {
     const supabase = getSupabaseClient();
     if (supabase) {
       const { itens, ...certData } = updatedCert;
-      await supabase.from('atestados_tecnicos').update({ ...certData, created_at: undefined }).eq('id', updatedCert.id);
+      const { error } = await supabase.from('atestados_tecnicos').update({ ...certData, created_at: undefined }).eq('id', updatedCert.id);
+      if (error) {
+        alert("Erro ao atualizar atestado: " + error.message);
+        return;
+      }
     }
     setAtestados(atestados.map(c => c.id === updatedCert.id ? updatedCert : c));
     setEditingCert(null);
@@ -800,7 +917,13 @@ export default function Home() {
   const handleDeleteCert = async (id: string) => {
     if (confirm("Deseja mesmo excluir este atestado técnico?")) {
       const supabase = getSupabaseClient();
-      if (supabase) await supabase.from('atestados_tecnicos').delete().eq('id', id);
+      if (supabase) {
+        const { error } = await supabase.from('atestados_tecnicos').delete().eq('id', id);
+        if (error) {
+          alert("Erro ao excluir atestado: " + error.message);
+          return;
+        }
+      }
       setAtestados(atestados.filter(c => c.id !== id));
     }
   };
@@ -1084,7 +1207,13 @@ export default function Home() {
     };
 
     const supabase = getSupabaseClient();
-    if (supabase) await supabase.from('licitacoes').insert([{ ...freshLicitacao, created_at: undefined }]);
+    if (supabase) {
+      const { error } = await supabase.from('licitacoes').insert([{ ...freshLicitacao, created_at: undefined }]);
+      if (error) {
+        alert("Erro ao salvar licitação: " + error.message);
+        return;
+      }
+    }
 
     setLicitacoes([freshLicitacao, ...licitacoes]);
 
@@ -2556,11 +2685,23 @@ export default function Home() {
 
                         if (isAddingTermo) {
                           const freshTermo = { id: crypto.randomUUID(), ...updatedOrNewData, ativo: true };
-                          if (supabase) await supabase.from('dicionario_parse_edital').insert([{ ...freshTermo, created_at: undefined }]);
+                          if (supabase) {
+                            const { error } = await supabase.from('dicionario_parse_edital').insert([{ ...freshTermo, created_at: undefined }]);
+                            if (error) {
+                              alert("Erro ao salvar termo: " + error.message);
+                              return;
+                            }
+                          }
                           setDicionario([freshTermo, ...dicionario]);
                         } else if (editingTermo) {
                           const updatedTerm = { ...editingTermo, ...updatedOrNewData };
-                          if (supabase) await supabase.from('dicionario_parse_edital').update({ ...updatedOrNewData }).eq('id', editingTermo.id);
+                          if (supabase) {
+                            const { error } = await supabase.from('dicionario_parse_edital').update({ ...updatedOrNewData }).eq('id', editingTermo.id);
+                            if (error) {
+                              alert("Erro ao atualizar termo: " + error.message);
+                              return;
+                            }
+                          }
                           setDicionario(dicionario.map(t => t.id === editingTermo.id ? updatedTerm : t));
                         }
 
