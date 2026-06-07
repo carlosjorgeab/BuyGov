@@ -250,7 +250,9 @@ export default function Home() {
   // Supabase connection setting state
   const [supabaseUrl, setSupabaseUrl] = useState(configUrl);
   const [supabaseKey, setSupabaseKey] = useState(configKey);
-  const [supabaseMode, setSupabaseMode] = useState<'offline' | 'connected'>('offline');
+  const [supabaseMode, setSupabaseMode] = useState<'offline' | 'connected'>(
+    (configUrl && configKey) ? 'connected' : 'offline'
+  );
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -576,6 +578,21 @@ export default function Home() {
       let activeClient = null;
       let isConfigured = false;
 
+      // First check if client-side environment variables are already parsed and ready
+      if (configUrl && configKey) {
+        try {
+          const { getSupabase } = await import('@/lib/supabase');
+          const client = getSupabase(configUrl, configKey);
+          if (client) {
+            activeClient = client;
+            isConfigured = true;
+          }
+        } catch (err) {
+          console.error("Erro ao instanciar Supabase a partir de variáveis de ambiente do cliente:", err);
+        }
+      }
+
+      // Double check dynamic runtime overrides or deployment credentials on server-side
       try {
         const configRes = await fetch('/api/config');
         if (configRes.ok) {

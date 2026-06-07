@@ -39,8 +39,6 @@ let customClient: SupabaseClient | null = null;
 let lastUrl = '';
 let lastKey = '';
 
-console.warn('URL: ' || supabaseUrl || ' KEY: ' || supabaseKey);
-
 export const supabase = (() => {
   if (supabaseUrl && supabaseKey) {
     try {
@@ -61,6 +59,14 @@ export const getSupabase = (customUrl?: string, customKey?: string) => {
   const key = cleanCustomKey || lastKey || supabaseKey;
   
   if (url && key) {
+    // Cache check to avoid recreating client instances on identical keys
+    if (customClient && url === lastUrl && key === lastKey) {
+      return customClient;
+    }
+    if (supabase && url === supabaseUrl && key === supabaseKey) {
+      return supabase;
+    }
+
     if (cleanCustomUrl && cleanCustomKey) {
       // Intentionally initializing or updating custom credentials at runtime
       try {
@@ -73,10 +79,6 @@ export const getSupabase = (customUrl?: string, customKey?: string) => {
         return null;
       }
     }
-    
-    // Default caching fallback logic
-    if (customClient) return customClient;
-    if (supabase && url === supabaseUrl && key === supabaseKey) return supabase;
     
     try {
       customClient = createClient(url, key);
