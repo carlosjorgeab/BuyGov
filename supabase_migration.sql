@@ -1,251 +1,138 @@
--- Migration SQL for Supabase (PostgreSQL) - Controle de Licitações ProProcure
--- Date: 2026-06-02
--- This script contains table definitions, constraints, indices, and self-contained seed/bootstrap data.
+-- SQL MIGRATIONS FOR PROPROCURE SYSTEM
+-- COMPREHENSIVE SCHEMA UPDATE (Aligning Supabase with App Types)
+-- This file matches exactly what the React application expects (TEXT IDs to support 'c_', 'e_', and 'a_' prefixed strings).
+-- If you have already executed a previous mismatched version of this script, please run the "RECONSTRUTOR" section below first.
 
--- 1. Enable UUID Extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ==========================================
+-- RECONSTRUTOR DE BASE (Para limpar tabelas antigas, Descomente abaixo se necessário)
+-- ==========================================
+-- DROP TABLE IF EXISTS public.documentos_repositorio CASCADE;
+-- DROP TABLE IF EXISTS public.atestados_itens CASCADE;
+-- DROP TABLE IF EXISTS public.atestados_tecnicos CASCADE;
+-- DROP TABLE IF EXISTS public.dicionario_parse_edital CASCADE;
+-- DROP TABLE IF EXISTS public.licitacoes CASCADE;
+-- DROP TABLE IF EXISTS public.usuarios CASCADE;
+-- DROP TABLE IF EXISTS public.perfis_acesso CASCADE;
+-- DROP TABLE IF EXISTS public.empresas CASCADE;
+-- DROP TABLE IF EXISTS public.configuracoes CASCADE;
 
--- 2. Empresas (Multi-Enterprise Structure)
+-- 1. Tabela de Empresas
 CREATE TABLE IF NOT EXISTS public.empresas (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     chave_empresa VARCHAR(50) UNIQUE NOT NULL,
     cnpj VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Index on enterprise key for fast filter queries
-CREATE INDEX IF NOT EXISTS idx_empresas_chave ON public.empresas(chave_empresa);
-
-
--- 3. Usuarios (Profiles and Authentication Support)
-CREATE TABLE IF NOT EXISTS public.usuarios (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) UNIQUE NOT NULL,
+-- 2. Tabela de Perfis de Acesso
+CREATE TABLE IF NOT EXISTS public.perfis_acesso (
+    id TEXT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
-    perfil VARCHAR(50) DEFAULT 'Analista' CHECK (perfil IN ('Administrador', 'Analista', 'Diretor')),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    dashboard BOOLEAN DEFAULT true,
+    agenda BOOLEAN DEFAULT true,
+    scanner BOOLEAN DEFAULT true,
+    atestados BOOLEAN DEFAULT true,
+    empresas BOOLEAN DEFAULT false,
+    usuarios_perfis BOOLEAN DEFAULT false,
+    ajustes BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
+-- 3. Tabela de Usuários Corporativos
+CREATE TABLE IF NOT EXISTS public.usuarios (
+    email TEXT PRIMARY KEY,
+    nome VARCHAR(255) NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    perfil_id TEXT REFERENCES public.perfis_acesso(id) ON DELETE SET NULL,
+    chave_empresa VARCHAR(50), 
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
 
--- 4. Licitações (Tenders / Tenders Catalog)
+-- 4. Tabela de Licitações (Tenders)
 CREATE TABLE IF NOT EXISTS public.licitacoes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE NOT NULL,
-    modalidade VARCHAR(100) NOT NULL, -- e.g. 'Pregão Eletrônico', 'Concorrência', 'Tomada de Preços'
-    objeto TEXT NOT NULL,
-    orgao VARCHAR(255) NOT NULL,
-    valor_estimado NUMERIC(15, 2) DEFAULT 0.00 NOT NULL,
-    prazo_proposta TIMESTAMP WITH TIME ZONE NOT NULL,
-    prazo_abertura TIMESTAMP WITH TIME ZONE NOT NULL,
-    documentos_obrigatorios TEXT[] DEFAULT '{}'::TEXT[],
-    exigencias_atestados TEXT DEFAULT '',
-    status VARCHAR(50) DEFAULT 'Em Análise' CHECK (status IN ('Em Análise', 'Em Preparação', 'Submetido', 'Ganho', 'Descartado')),
-    checklist_itens JSONB DEFAULT '[]'::JSONB, -- e.g. [{"id": "1", "label": "CND Federal", "checked": true}]
+    id TEXT PRIMARY KEY,
+    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE,
+    modalidade VARCHAR(100),
+    objeto TEXT,
+    orgao VARCHAR(255),
+    valor_estimado NUMERIC(15,2),
+    prazo_proposta TEXT,
+    prazo_abertura TEXT,
+    documentos_obrigatorios JSONB DEFAULT '[]',
+    exigencias_atestados TEXT,
+    status VARCHAR(50),
+    checklist_itens JSONB DEFAULT '[]',
     numero_edital VARCHAR(100),
     numero_processo VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    resumo_edital TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Últimas alterações: Adicionar colunas caso já existam em bancos migrados
-ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_edital VARCHAR(100);
-ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS numero_processo VARCHAR(100);
-ALTER TABLE public.licitacoes ADD COLUMN IF NOT EXISTS resumo_edital TEXT;
-
-CREATE INDEX IF NOT EXISTS idx_licitacoes_chave_empresa ON public.licitacoes(chave_empresa);
-CREATE INDEX IF NOT EXISTS idx_licitacoes_status ON public.licitacoes(status);
-
--- 4b. Dicionário de Termos de Licitação (Para extração de dados Inteligente e personalização)
-CREATE TABLE IF NOT EXISTS public.dicionario_parse_edital (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE NOT NULL,
-    termo VARCHAR(255) NOT NULL,
-    categoria VARCHAR(100) NOT NULL, -- e.g. 'Modalidade', 'Órgão', 'Atestado', 'Documento'
-    sinonimos TEXT[] DEFAULT '{}'::TEXT[],
-    ativo BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_dicionario_chave ON public.dicionario_parse_edital(chave_empresa);
-
-
--- 5. Atestados Técnicos (Company Technical Certificates)
+-- 5. Tabela de Atestados Técnicos (Company Technical Certificates)
 CREATE TABLE IF NOT EXISTS public.atestados_tecnicos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE NOT NULL,
+    id TEXT PRIMARY KEY,
+    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE,
     nome_atestado VARCHAR(255) NOT NULL,
     orgao_emissor VARCHAR(255) NOT NULL,
-    data_emissao DATE NOT NULL,
+    data_emissao TEXT,
     observacoes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    itens JSONB DEFAULT '[]',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
-CREATE INDEX IF NOT EXISTS idx_atestados_chave_empresa ON public.atestados_tecnicos(chave_empresa);
-
-
--- 6. Itens de Atestados Técnicos (CRUD line by line capability)
-CREATE TABLE IF NOT EXISTS public.atestados_itens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    atestado_id UUID REFERENCES public.atestados_tecnicos(id) ON DELETE CASCADE NOT NULL,
-    item_numero INT NOT NULL,
-    descricao TEXT NOT NULL,
-    quantidade NUMERIC(12, 3) NOT NULL,
-    unidade VARCHAR(50) NOT NULL, -- e.g. 'un', 'm2', 'h', 'km'
-    relevancia_tecnica VARCHAR(50) DEFAULT 'Média' CHECK (relevancia_tecnica IN ('Alta', 'Média', 'Baixa')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+-- 6. Tabela de Dicionário de Termos
+CREATE TABLE IF NOT EXISTS public.dicionario_parse_edital (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chave_empresa VARCHAR(50),
+    termo TEXT NOT NULL,
+    categoria VARCHAR(100),
+    sinonimos JSONB DEFAULT '[]',
+    ativo BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
-
--- 7. Documentos Base / Repositório
+-- 7. Tabela de Documentos Repositório
 CREATE TABLE IF NOT EXISTS public.documentos_repositorio (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE NOT NULL,
-    nome_arquivo VARCHAR(255) NOT NULL,
-    tag VARCHAR(100) NOT NULL, -- e.g. 'CNPJ', 'Certidão Federal', 'Balanço Patrimonial'
-    validade DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+    id TEXT PRIMARY KEY,
+    nome_arquivo TEXT NOT NULL,
+    tag VARCHAR(100),
+    validade TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
-
--- 8. Configurações da Empresa
-CREATE TABLE IF NOT EXISTS public.configuracoes (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    chave_empresa VARCHAR(50) REFERENCES public.empresas(chave_empresa) ON DELETE CASCADE UNIQUE NOT NULL,
-    system_timeout_minutes INT DEFAULT 15 NOT NULL,
-    primary_color VARCHAR(10) DEFAULT '#091426' NOT NULL, -- Customize hex colors
-    secondary_color VARCHAR(10) DEFAULT '#bc0000' NOT NULL,
-    alertas_email BOOLEAN DEFAULT REAL NOT NULL,
-    alertas_novos_editais BOOLEAN DEFAULT REAL NOT NULL,
-    alertas_status_change BOOLEAN DEFAULT REAL NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-
--- =======================================================
--- BOOTSTRAP / SEED DATA
--- =======================================================
-
--- Active Demo Companies
+-- 8. SEED DATA (Amostras básicas de homologação)
 INSERT INTO public.empresas (id, nome, chave_empresa, cnpj)
 VALUES 
-('d1111111-1111-1111-1111-111111111111', 'LicitaTech Engenharia Ltda', 'LICITATECH', '12.345.678/0001-90'),
-('d2222222-2222-2222-2222-222222222222', 'Alpha Solutions Corporativas', 'ALPHASOL', '98.765.432/0001-10')
-ON CONFLICT (chave_empresa) DO NOTHING;
+  ('d1111111-1111-1111-1111-111111111111', 'LicitaTech Engenharia Ltda', 'LICITATECH', '12.345.678/0001-90'),
+  ('d2222222-2222-2222-2222-222222222222', 'Alpha Solutions Corporativas', 'ALPHASOL', '98.765.432/0001-10')
+ON CONFLICT (chave_empresa) DO UPDATE SET
+  nome = EXCLUDED.nome,
+  cnpj = EXCLUDED.cnpj;
 
--- Initial Demo Users
-INSERT INTO public.usuarios (email, nome, perfil, chave_empresa)
+INSERT INTO public.perfis_acesso (id, nome, dashboard, agenda, scanner, atestados, empresas, usuarios_perfis, ajustes)
 VALUES 
-('carlos.mendes@empresa.com.br', 'Carlos Mendes', 'Administrador', 'LICITATECH'),
-('analista.licita@empresa.com.br', 'Ana Silva', 'Analista', 'LICITATECH'),
-('diretor.licita@empresa.com.br', 'Roberto Costa', 'Diretor', 'LICITATECH')
-ON CONFLICT (email) DO NOTHING;
+  ('perfil-admin', 'Administrador Geral', true, true, true, true, true, true, true),
+  ('perfil-analista', 'Analista de Licitações', true, true, true, true, false, false, false),
+  ('perfil-diretor', 'Diretor Comercial', true, true, false, true, false, false, true)
+ON CONFLICT (id) DO UPDATE SET
+  nome = EXCLUDED.nome,
+  dashboard = EXCLUDED.dashboard,
+  agenda = EXCLUDED.agenda,
+  scanner = EXCLUDED.scanner,
+  atestados = EXCLUDED.atestados,
+  empresas = EXCLUDED.empresas,
+  usuarios_perfis = EXCLUDED.usuarios_perfis,
+  ajustes = EXCLUDED.ajustes;
 
--- Base Documents
-INSERT INTO public.documentos_repositorio (chave_empresa, nome_arquivo, tag, validade)
-VALUES
-('LICITATECH', 'Cartao_CNPJ_Atualizado.pdf', 'CNPJ', '2030-12-31'),
-('LICITATECH', 'Certidado_Negativa_Federal.pdf', 'Certidão Federal', '2026-06-10'),
-('LICITATECH', 'Balanco_Patrimonial_2025.pdf', 'Balanço Patrimonial', '2027-04-30')
-ON CONFLICT DO NOTHING;
-
--- Initial Demo Configs
-INSERT INTO public.configuracoes (chave_empresa, system_timeout_minutes, primary_color, secondary_color, alertas_email, alertas_novos_editais, alertas_status_change)
+INSERT INTO public.usuarios (email, nome, senha, perfil_id, chave_empresa)
 VALUES 
-('LICITATECH', 15, '#091426', '#bc0000', true, true, false),
-('ALPHASOL', 20, '#1E293B', '#D80000', true, false, true)
-ON CONFLICT (chave_empresa) DO NOTHING;
-
--- Basic Demo Tenders
-INSERT INTO public.licitacoes (id, chave_empresa, modalidade, objeto, orgao, valor_estimado, prazo_proposta, prazo_abertura, documentos_obrigatorios, exigencias_atestados, status, checklist_itens, numero_edital, numero_processo, resumo_edital)
-VALUES 
-(
-    'e1111111-1111-1111-1111-111111111111', 
-    'LICITATECH', 
-    'Pregão Eletrônico', 
-    'Aquisição de equipamentos de monitoramento multiparamétrico e insumos médicos para salas de UTI integrada.', 
-    'Ministério da Saúde (MS)', 
-    2450000.00, 
-    now() + interval '4 hours', -- Urgent proposal
-    now() + interval '1 day',
-    ARRAY['CNPJ', 'Certidão de Falência', 'Balanço Patrimonial', 'Atestado de Capacidade Técnica de Equipamentos Médicos'],
-    'Exige atestado comprovando o fornecimento continuado de no mínimo 30 monitores cardíacos multiparamétricos de alta complexidade em ambiente de terapia intensiva.',
-    'Em Preparação',
-    '[{"id": "c1", "label": "Certidão Federal Negativa", "checked": true}, {"id": "c2", "label": "Balanço Patrimonial", "checked": false}]'::JSONB,
-    '45/2023',
-    'MS-10492/2023',
-    'Licitação para requisição rápida de equipamentos médicos para emergência em massa UTI'
-),
-(
-    'e2222222-2222-2222-2222-222222222222', 
-    'LICITATECH', 
-    'Concorrência', 
-    'Prestação de serviços de reforma estrutural, impermeabilização de lajes e pintura de blocos administrativos.', 
-    'PMSP - Sec. de Obras', 
-    850000.00, 
-    now() + interval '2 days',
-    now() + interval '3 days',
-    ARRAY['CNPJ', 'Certidão do CREA', 'Atestado de Reforma Predial'],
-    'Necessário comprovar execução de serviços de engenharia civil que incluam no mínimo 500m2 de impermeabilização de laje ou coberturas prediais com manta asfáltica.',
-    'Em Análise',
-    '[]'::JSONB,
-    '12/2023',
-    'PMSP-10023/2023',
-    'Serviço estrutural focado em lajes e pintura municipal'
-),
-(
-    'e3333333-3333-3333-3333-333333333333', 
-    'LICITATECH', 
-    'Tomada de Preços', 
-    'Contratação de empresa para fornecimento e implantação de licenças de software de gestão pública municipal integrada.', 
-    'TJSP', 
-    120000.00, 
-    now() + interval '12 days',
-    now() + interval '13 days',
-    ARRAY['CNPJ', 'Certidão de Diretrizes Técnicas', 'Atestado de Implantação de ERP'],
-    'Exige atestado de homologação de sistema web voltado para área pública operado em nuvem com conformidade de banco de dados SQL e segurança LGPD.',
-    'Em Análise',
-    '[]'::JSONB,
-    '08/2024',
-    'TJSP-202401-209',
-    'Software licenças base cloud'
-)
-ON CONFLICT DO NOTHING;
-
--- Initial Demo Dicionario
-INSERT INTO public.dicionario_parse_edital (chave_empresa, termo, categoria, sinonimos)
-VALUES 
-('LICITATECH', 'Balanço Patrimonial', 'Documento', ARRAY['Balanço Financeiro', 'Demonstração Contábil']),
-('LICITATECH', 'Inexigibilidade', 'Modalidade', ARRAY['Inexigível', 'Art. 74']),
-('LICITATECH', 'Secretaria da Saúde', 'Órgão', ARRAY['SES', 'Secretaria Estadual de Saúde'])
-ON CONFLICT DO NOTHING;
-
--- Initial Demo Technical Certificates
-INSERT INTO public.atestados_tecnicos (id, chave_empresa, nome_atestado, orgao_emissor, data_emissao, observacoes)
-VALUES
-(
-    'a1111111-1111-1111-1111-111111111111',
-    'LICITATECH',
-    'Atestado de Capacidade Hospitalar Albert Einstein',
-    'Hospital Israelita Albert Einstein',
-    '2025-02-15',
-    'Atestado de alta relevância com grande quantidade de equipamentos e tecnologia médica de ponta fornecida.'
-),
-(
-    'a2222222-2222-2222-2222-222222222222',
-    'LICITATECH',
-    'Atestado de Obras Civis - Metrô de São Paulo',
-    'Companhia do Metropolitano de São Paulo - Metrô',
-    '2024-08-30',
-    'Refere-se à reforma predial e impermeabilização das lajes de blocos de ventilação de estações.'
-)
-ON CONFLICT DO NOTHING;
-
--- Technical Certificate Items (CRUD line-by-line)
-INSERT INTO public.atestados_itens (atestado_id, item_numero, descricao, quantidade, unidade, relevancia_tecnica)
-VALUES
-('a1111111-1111-1111-1111-111111111111', 1, 'Fornecimento e instalação de monitor multiparamétrico de sinais vitais de UTI com ECG, SpO2 e Pressão Não-Invasiva.', 45.000, 'un', 'Alta'),
-('a1111111-1111-1111-1111-111111111111', 2, 'Serviço de treinamento operacional complementar para enfermeiros e equipe médica intensivista na calibração de bombas de infusão.', 120.000, 'h', 'Média'),
-('a2222222-2222-2222-2222-222222222222', 1, 'Aplicação de impermeabilização rígida e flexível com manta asfáltica polimérica de 4mm sob calor em coberturas industriais expostas.', 800.000, 'm2', 'Alta'),
-('a2222222-2222-2222-2222-222222222222', 2, 'Pintura acrílica de alta resistência física para fachadas de concreto armado e blocos prediais de engenharia civil.', 1200.000, 'm2', 'Média')
-ON CONFLICT DO NOTHING;
+  ('admin', 'Administrador Geral', 'Cjl@j2326082110', 'perfil-admin', 'ALL'),
+  ('carlos.mendes@empresa.com.br', 'Carlos Mendes', '123', 'perfil-admin', 'LICITATECH'),
+  ('analista.licita@empresa.com.br', 'Ana Silva', '123', 'perfil-analista', 'LICITATECH'),
+  ('diretor.licita@empresa.com.br', 'Roberto Costa', '123', 'perfil-diretor', 'LICITATECH')
+ON CONFLICT (email) DO UPDATE SET
+  nome = EXCLUDED.nome,
+  senha = EXCLUDED.senha,
+  perfil_id = EXCLUDED.perfil_id,
+  chave_empresa = EXCLUDED.chave_empresa;

@@ -379,43 +379,65 @@ export default function Home() {
 
     try {
       setIsSyncing(true);
+
+      const fetchTable = async (tableName: string) => {
+        try {
+          const res = await client.from(tableName).select('*');
+          if (res.error) console.error(`Erro ao consultar tabela ${tableName}:`, res.error);
+          return res.data || null;
+        } catch (err) {
+          console.error(`Falha crítica ao acessar tabela ${tableName}:`, err);
+          return null;
+        }
+      };
+
       const [
-        { data: dbUsuarios, error: errU },
-        { data: dbEmpresas, error: errE },
-        { data: dbLicitacoes, error: errL },
-        { data: dbAtestados, error: errA },
-        { data: dbDocumentos, error: errD },
-        { data: dbDicionario, error: errDic },
-        { data: dbPerfis, error: errP }
+        dbUsuarios,
+        dbEmpresas,
+        dbLicitacoes,
+        dbAtestados,
+        dbDocumentos,
+        dbDicionario,
+        dbPerfis
       ] = await Promise.all([
-        client.from('usuarios').select('*'),
-        client.from('empresas').select('*'),
-        client.from('licitacoes').select('*'),
-        client.from('atestados_tecnicos').select('*'),
-        client.from('documentos_repositorio').select('*'),
-        client.from('dicionario_parse_edital').select('*'),
-        client.from('perfis_acesso').select('*')
+        fetchTable('usuarios'),
+        fetchTable('empresas'),
+        fetchTable('licitacoes'),
+        fetchTable('atestados_tecnicos'),
+        fetchTable('documentos_repositorio'),
+        fetchTable('dicionario_parse_edital'),
+        fetchTable('perfis_acesso')
       ]);
 
-      if (errU) console.error('Erro usuários:', errU);
-      if (errE) console.error('Erro empresas:', errE);
-      if (errL) console.error('Erro licitações:', errL);
-      if (errA) console.error('Erro atestados:', errA);
-      if (errDic) console.error('Erro dicionário:', errDic);
-      if (errP) console.error('Erro perfis:', errP);
+      if (dbUsuarios && Array.isArray(dbUsuarios)) {
+        setUsuarios(dbUsuarios.map((u: any) => ({
+          ...u,
+          perfilId: u.perfil_id || u.perfilId || 'perfil-analista'
+        })));
+      } else {
+        setUsuarios(INITIAL_USERS);
+      }
 
-      if (dbUsuarios) setUsuarios(dbUsuarios);
-      if (dbEmpresas) setEmpresas(dbEmpresas as any);
-      if (dbLicitacoes) setLicitacoes(dbLicitacoes as any);
-      if (dbAtestados) setAtestados(dbAtestados as any);
-      if (dbDocumentos) setDocumentos(dbDocumentos as any);
-      if (dbDicionario) setDicionario(dbDicionario as any);
-      if (dbPerfis && dbPerfis.length > 0) setPerfis(dbPerfis as any);
+      if (dbEmpresas && Array.isArray(dbEmpresas)) setEmpresas(dbEmpresas as any);
+      else setEmpresas(INITIAL_COMPANIES);
+
+      if (dbLicitacoes && Array.isArray(dbLicitacoes)) setLicitacoes(dbLicitacoes as any);
+      else setLicitacoes(INITIAL_BIDS);
+
+      if (dbAtestados && Array.isArray(dbAtestados)) setAtestados(dbAtestados as any);
+      else setAtestados(INITIAL_CERTIFICATES);
+
+      if (dbDocumentos && Array.isArray(dbDocumentos)) setDocumentos(dbDocumentos as any);
+      else setDocumentos(INITIAL_DOCUMENTS);
+
+      if (dbDicionario && Array.isArray(dbDicionario)) setDicionario(dbDicionario as any);
+
+      if (dbPerfis && Array.isArray(dbPerfis) && dbPerfis.length > 0) setPerfis(dbPerfis as any);
       else setPerfis(INITIAL_PROFILES);
 
       setStateLoaded(true);
     } catch (e) {
-      console.error('Falha crítica ao carregar do Supabase:', e);
+      console.error('Falha geral no carregamento:', e);
     } finally {
       setIsSyncing(false);
     }
@@ -469,7 +491,7 @@ export default function Home() {
     };
 
     checkAuth();
-  }, [loadSupabaseData, timeoutMinutes, supabaseUrl, supabaseKey]);
+  }, [loadSupabaseData, timeoutMinutes]);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -961,8 +983,7 @@ export default function Home() {
 
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { itens, ...certData } = freshCert;
-      const { error } = await supabase.from('atestados_tecnicos').insert([{ ...certData, created_at: undefined }]);
+      const { error } = await supabase.from('atestados_tecnicos').insert([{ ...freshCert, created_at: undefined }]);
       if (error) {
         alert("Erro ao salvar atestado: " + error.message);
         return;
@@ -982,8 +1003,7 @@ export default function Home() {
   const handleSaveEditCert = async (updatedCert: AtestadoTecnico) => {
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { itens, ...certData } = updatedCert;
-      const { error } = await supabase.from('atestados_tecnicos').update({ ...certData, created_at: undefined }).eq('id', updatedCert.id);
+      const { error } = await supabase.from('atestados_tecnicos').update({ ...updatedCert, created_at: undefined }).eq('id', updatedCert.id);
       if (error) {
         alert("Erro ao atualizar atestado: " + error.message);
         return;
