@@ -391,7 +391,7 @@ export default function Home() {
         }
       };
 
-      const [
+      let [
         dbUsuarios,
         dbEmpresas,
         dbLicitacoes,
@@ -409,6 +409,130 @@ export default function Home() {
         fetchTable('perfis_acesso')
       ]);
 
+      // --- AUTO-SEED MECHANISM FOR NEW/CLEAN DATABASES ---
+      // 1. Seed perfis_acesso first
+      if (dbPerfis && Array.isArray(dbPerfis) && dbPerfis.length === 0) {
+        try {
+          const perfisToSeed = INITIAL_PROFILES.map((p: any) => ({
+            id: p.id,
+            nome: p.nome,
+            dashboard: p.dashboard,
+            agenda: p.agenda,
+            scanner: p.scanner,
+            atestados: p.atestados,
+            empresas: p.empresas,
+            usuarios_perfis: p.usuarios_perfis,
+            ajustes: p.ajustes
+          }));
+          await client.from('perfis_acesso').insert(perfisToSeed);
+          const refresh = await client.from('perfis_acesso').select('*');
+          if (refresh.data) dbPerfis = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear perfis_acesso:", err);
+        }
+      }
+
+      // 2. Seed empresas second
+      if (dbEmpresas && Array.isArray(dbEmpresas) && dbEmpresas.length === 0) {
+        try {
+          const empToSeed = INITIAL_COMPANIES.map((e: any) => ({
+            id: e.id,
+            nome: e.nome,
+            chave_empresa: e.chave_empresa,
+            cnpj: e.cnpj
+          }));
+          await client.from('empresas').insert(empToSeed);
+          const refresh = await client.from('empresas').select('*');
+          if (refresh.data) dbEmpresas = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear empresas:", err);
+        }
+      }
+
+      // 3. Seed de usuários corporativos
+      if (dbUsuarios && Array.isArray(dbUsuarios) && dbUsuarios.length === 0) {
+        try {
+          const uToSeed = INITIAL_USERS.map((u: any) => ({
+            email: u.email,
+            nome: u.nome,
+            senha: u.senha,
+            perfil_id: u.perfilId,
+            chave_empresa: u.chave_empresa
+          }));
+          await client.from('usuarios').insert(uToSeed);
+          const refresh = await client.from('usuarios').select('*');
+          if (refresh.data) dbUsuarios = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear usuarios:", err);
+        }
+      }
+
+      // 4. Seed de editais e licitações
+      if (dbLicitacoes && Array.isArray(dbLicitacoes) && dbLicitacoes.length === 0) {
+        try {
+          const bToSeed = INITIAL_BIDS.map((b: any) => ({
+            id: b.id,
+            chave_empresa: b.chave_empresa,
+            modalidade: b.modalidade,
+            objeto: b.objeto,
+            orgao: b.orgao,
+            valor_estimado: b.valor_estimado,
+            prazo_proposta: b.prazo_proposta,
+            prazo_abertura: b.prazo_abertura,
+            documentos_obrigatorios: b.documentos_obrigatorios,
+            exigencias_atestados: b.exigencias_atestados,
+            status: b.status,
+            checklist_itens: b.checklist_itens,
+            numero_edital: b.numero_edital,
+            numero_processo: b.numero_processo,
+            resumo_edital: b.resumo_edital
+          }));
+          await client.from('licitacoes').insert(bToSeed);
+          const refresh = await client.from('licitacoes').select('*');
+          if (refresh.data) dbLicitacoes = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear licitacoes:", err);
+        }
+      }
+
+      // 5. Seed de atestados_tecnicos
+      if (dbAtestados && Array.isArray(dbAtestados) && dbAtestados.length === 0) {
+        try {
+          const aToSeed = INITIAL_CERTIFICATES.map((a: any) => ({
+            id: a.id,
+            chave_empresa: a.chave_empresa,
+            nome_atestado: a.nome_atestado,
+            orgao_emissor: a.orgao_emissor,
+            data_emissao: a.data_emissao,
+            observacoes: a.observacoes,
+            itens: a.itens
+          }));
+          await client.from('atestados_tecnicos').insert(aToSeed);
+          const refresh = await client.from('atestados_tecnicos').select('*');
+          if (refresh.data) dbAtestados = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear atestados_tecnicos:", err);
+        }
+      }
+
+      // 6. Seed de documentos do repositório
+      if (dbDocumentos && Array.isArray(dbDocumentos) && dbDocumentos.length === 0) {
+        try {
+          const dToSeed = INITIAL_DOCUMENTS.map((d: any) => ({
+            id: d.id,
+            nome_arquivo: d.nome_arquivo,
+            tag: d.tag,
+            validade: d.validade
+          }));
+          await client.from('documentos_repositorio').insert(dToSeed);
+          const refresh = await client.from('documentos_repositorio').select('*');
+          if (refresh.data) dbDocumentos = refresh.data;
+        } catch (err) {
+          console.error("Erro ao auto-semear documentos_repositorio:", err);
+        }
+      }
+
+      // Mapeamento e montagem de estados da UI
       if (dbUsuarios && Array.isArray(dbUsuarios)) {
         setUsuarios(dbUsuarios.map((u: any) => ({
           ...u,
@@ -456,7 +580,7 @@ export default function Home() {
         const configRes = await fetch('/api/config');
         if (configRes.ok) {
           const configData = await configRes.json();
-          if (configData.supabaseUrl && configData.supabaseKey && configData.supabaseUrl.startsWith('https://')) {
+          if (configData.supabaseUrl && configData.supabaseKey && (configData.supabaseUrl.startsWith('https://') || configData.supabaseUrl.startsWith('http://'))) {
             const { getSupabase } = await import('@/lib/supabase');
             const client = getSupabase(configData.supabaseUrl, configData.supabaseKey);
             if (client) {
@@ -475,7 +599,7 @@ export default function Home() {
       setSupabaseMode(activeMode);
 
       await loadSupabaseData(activeClient);
-      
+
       // Look for persisted login
       const savedUser = localStorage.getItem('proprocure_logged_user');
       if (savedUser) {
@@ -569,7 +693,7 @@ export default function Home() {
       const configRes = await fetch('/api/config');
       if (configRes.ok) {
         const configData = await configRes.json();
-        if (configData.supabaseUrl && configData.supabaseKey && configData.supabaseUrl.startsWith('https://')) {
+        if (configData.supabaseUrl && configData.supabaseKey && (configData.supabaseUrl.startsWith('https://') || configData.supabaseUrl.startsWith('http://'))) {
           const { getSupabase } = await import('@/lib/supabase');
           activeClient = getSupabase(configData.supabaseUrl, configData.supabaseKey);
           if (activeClient) {

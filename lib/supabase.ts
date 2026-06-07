@@ -28,8 +28,8 @@ export function cleanUrl(url: string): string {
   return '';
 }
 
-const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 export const supabaseUrl = cleanUrl(rawUrl);
 export const supabaseKey = cleanEnvValue(rawKey);
