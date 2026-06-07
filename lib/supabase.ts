@@ -39,6 +39,8 @@ let customClient: SupabaseClient | null = null;
 let lastUrl = '';
 let lastKey = '';
 
+console.error('URL: ' || supabaseUrl || ' KEY: ' || supabaseKey);
+
 export const supabase = (() => {
   if (supabaseUrl && supabaseKey) {
     try {
