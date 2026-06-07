@@ -13,5 +13,7 @@ export async function GET() {
   return NextResponse.json({
     supabaseUrl,
     supabaseKey,
+    rawUrl,
+    rawKey,
   });
 }

@@ -250,6 +250,8 @@ export default function Home() {
   // Supabase connection setting state
   const [supabaseUrl, setSupabaseUrl] = useState(configUrl);
   const [supabaseKey, setSupabaseKey] = useState(configKey);
+  const [supabaseUrlDiag, setSupabaseUrlDiag] = useState<string>('');
+  const [supabaseKeyDiag, setSupabaseKeyDiag] = useState<string>('');
   const [supabaseMode, setSupabaseMode] = useState<'offline' | 'connected'>(
     (configUrl && configKey) ? 'connected' : 'offline'
   );
@@ -366,9 +368,20 @@ export default function Home() {
     return getSupabase(supabaseUrl, supabaseKey);
   }, [supabaseUrl, supabaseKey]);
 
-  const loadSupabaseData = useCallback(async (clientOverride?: any) => {
+  const loadSupabaseData = useCallback(async (clientOverride?: any, hasTriedEnv?: boolean) => {
     const client = clientOverride || getSupabaseClient();
     if (!client) {
+      if (hasTriedEnv) {
+        setUsuarios([]);
+        setEmpresas([]);
+        setLicitacoes([]);
+        setAtestados([]);
+        setDocumentos([]);
+        setPerfis(INITIAL_PROFILES);
+        setDatabaseSchemaAlert(true);
+        setStateLoaded(true);
+        return;
+      }
       // Load offline seed collections if no database is available
       setUsuarios(INITIAL_USERS);
       setEmpresas(INITIAL_COMPANIES);
@@ -438,130 +451,8 @@ export default function Home() {
         return;
       }
 
-      // --- AUTO-SEED MECHANISM FOR NEW/CLEAN DATABASES ---
-      // 1. Seed perfis_acesso first
-      if (dbPerfis && Array.isArray(dbPerfis) && dbPerfis.length === 0) {
-        try {
-          const perfisToSeed = INITIAL_PROFILES.map((p: any) => ({
-            id: p.id,
-            nome: p.nome,
-            dashboard: p.dashboard,
-            agenda: p.agenda,
-            scanner: p.scanner,
-            atestados: p.atestados,
-            empresas: p.empresas,
-            usuarios_perfis: p.usuarios_perfis,
-            ajustes: p.ajustes
-          }));
-          await client.from('perfis_acesso').insert(perfisToSeed);
-          const refresh = await client.from('perfis_acesso').select('*');
-          if (refresh.data) dbPerfis = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear perfis_acesso:", err);
-        }
-      }
-
-      // 2. Seed empresas second
-      if (dbEmpresas && Array.isArray(dbEmpresas) && dbEmpresas.length === 0) {
-        try {
-          const empToSeed = INITIAL_COMPANIES.map((e: any) => ({
-            id: e.id,
-            nome: e.nome,
-            chave_empresa: e.chave_empresa,
-            cnpj: e.cnpj
-          }));
-          await client.from('empresas').insert(empToSeed);
-          const refresh = await client.from('empresas').select('*');
-          if (refresh.data) dbEmpresas = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear empresas:", err);
-        }
-      }
-
-      // 3. Seed de usuários corporativos
-      if (dbUsuarios && Array.isArray(dbUsuarios) && dbUsuarios.length === 0) {
-        try {
-          const uToSeed = INITIAL_USERS.map((u: any) => ({
-            email: u.email,
-            nome: u.nome,
-            senha: u.senha,
-            perfil_id: u.perfilId,
-            chave_empresa: u.chave_empresa
-          }));
-          await client.from('usuarios').insert(uToSeed);
-          const refresh = await client.from('usuarios').select('*');
-          if (refresh.data) dbUsuarios = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear usuarios:", err);
-        }
-      }
-
-      // 4. Seed de editais e licitações
-      if (dbLicitacoes && Array.isArray(dbLicitacoes) && dbLicitacoes.length === 0) {
-        try {
-          const bToSeed = INITIAL_BIDS.map((b: any) => ({
-            id: b.id,
-            chave_empresa: b.chave_empresa,
-            modalidade: b.modalidade,
-            objeto: b.objeto,
-            orgao: b.orgao,
-            valor_estimado: b.valor_estimado,
-            prazo_proposta: b.prazo_proposta,
-            prazo_abertura: b.prazo_abertura,
-            documentos_obrigatorios: b.documentos_obrigatorios,
-            exigencias_atestados: b.exigencias_atestados,
-            status: b.status,
-            checklist_itens: b.checklist_itens,
-            numero_edital: b.numero_edital,
-            numero_processo: b.numero_processo,
-            resumo_edital: b.resumo_edital
-          }));
-          await client.from('licitacoes').insert(bToSeed);
-          const refresh = await client.from('licitacoes').select('*');
-          if (refresh.data) dbLicitacoes = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear licitacoes:", err);
-        }
-      }
-
-      // 5. Seed de atestados_tecnicos
-      if (dbAtestados && Array.isArray(dbAtestados) && dbAtestados.length === 0) {
-        try {
-          const aToSeed = INITIAL_CERTIFICATES.map((a: any) => ({
-            id: a.id,
-            chave_empresa: a.chave_empresa,
-            nome_atestado: a.nome_atestado,
-            orgao_emissor: a.orgao_emissor,
-            data_emissao: a.data_emissao,
-            observacoes: a.observacoes,
-            itens: a.itens
-          }));
-          await client.from('atestados_tecnicos').insert(aToSeed);
-          const refresh = await client.from('atestados_tecnicos').select('*');
-          if (refresh.data) dbAtestados = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear atestados_tecnicos:", err);
-        }
-      }
-
-      // 6. Seed de documentos do repositório
-      if (dbDocumentos && Array.isArray(dbDocumentos) && dbDocumentos.length === 0) {
-        try {
-          const dToSeed = INITIAL_DOCUMENTS.map((d: any) => ({
-            id: d.id,
-            nome_arquivo: d.nome_arquivo,
-            tag: d.tag,
-            validade: d.validade
-          }));
-          await client.from('documentos_repositorio').insert(dToSeed);
-          const refresh = await client.from('documentos_repositorio').select('*');
-          if (refresh.data) dbDocumentos = refresh.data;
-        } catch (err) {
-          console.error("Erro ao auto-semear documentos_repositorio:", err);
-        }
-      }
-
-      // Mapeamento e montagem de estados da UI
+      // NO Frontend Auto-seeding: We query the database and set it exactly as-is.
+      // If the user's table is empty, we show empty state as expected by user intent.
       if (dbUsuarios && Array.isArray(dbUsuarios)) {
         setUsuarios(dbUsuarios.map((u: any) => ({
           ...u,
@@ -604,18 +495,22 @@ export default function Home() {
       setSessionToken(token);
       let activeClient = null;
       let isConfigured = false;
+      let hasTriedEnv = false;
 
       // First check if client-side environment variables are already parsed and ready
-      if (configUrl && configKey) {
-        try {
-          const { getSupabase } = await import('@/lib/supabase');
-          const client = getSupabase(configUrl, configKey);
-          if (client) {
-            activeClient = client;
-            isConfigured = true;
+      if (configUrl || configKey) {
+        hasTriedEnv = true;
+        if (configUrl && configKey) {
+          try {
+            const { getSupabase } = await import('@/lib/supabase');
+            const client = getSupabase(configUrl, configKey);
+            if (client) {
+              activeClient = client;
+              isConfigured = true;
+            }
+          } catch (err) {
+            console.error("Erro ao instanciar Supabase a partir de variáveis de ambiente do cliente:", err);
           }
-        } catch (err) {
-          console.error("Erro ao instanciar Supabase a partir de variáveis de ambiente do cliente:", err);
         }
       }
 
@@ -624,6 +519,13 @@ export default function Home() {
         const configRes = await fetch('/api/config');
         if (configRes.ok) {
           const configData = await configRes.json();
+          if (configData.rawUrl) setSupabaseUrlDiag(configData.rawUrl);
+          if (configData.rawKey) setSupabaseKeyDiag(configData.rawKey);
+
+          if (configData.rawUrl || configData.rawKey) {
+            hasTriedEnv = true;
+          }
+
           if (configData.supabaseUrl && configData.supabaseKey && (configData.supabaseUrl.startsWith('https://') || configData.supabaseUrl.startsWith('http://'))) {
             const { getSupabase } = await import('@/lib/supabase');
             const client = getSupabase(configData.supabaseUrl, configData.supabaseKey);
@@ -642,7 +544,7 @@ export default function Home() {
       const activeMode = isConfigured ? 'connected' : 'offline';
       setSupabaseMode(activeMode);
 
-      await loadSupabaseData(activeClient);
+      await loadSupabaseData(activeClient, hasTriedEnv);
 
       // Look for persisted login
       const savedUser = localStorage.getItem('proprocure_logged_user');
@@ -1602,6 +1504,30 @@ export default function Home() {
           <p className="text-emerald-700 text-sm text-center mt-1">
             Plataforma Corporativa de Licitações
           </p>
+
+          {/* Diagnostic alert box for invalid config */}
+          {(!getSupabaseClient() && (supabaseUrlDiag || supabaseKeyDiag)) && (
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs space-y-2">
+              <div className="flex gap-2 font-bold text-amber-950 items-center">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 animate-bounce" />
+                <span>⚠️ Erro de Configuração Detectado</span>
+              </div>
+              <p className="leading-relaxed">
+                As variáveis de ambiente do Supabase estão configuradas no servidor, mas o formato está inválido.
+              </p>
+              {supabaseUrlDiag && !supabaseUrlDiag.startsWith('http') && (
+                <div className="bg-amber-100/50 p-2 rounded text-[11px] font-mono border border-amber-200/60 leading-normal space-y-1">
+                  <p className="font-bold text-amber-950">Descrição do Erro:</p>
+                  <div>Sua variável <code className="bg-amber-200/50 px-1 py-0.5 rounded text-amber-950 font-semibold text-[10px]">NEXT_PUBLIC_SUPABASE_URL</code> está configurada como:</div>
+                  <div className="bg-white px-2 py-1 rounded border border-amber-300 text-red-700 font-bold truncate select-all">{supabaseUrlDiag}</div>
+                  <div>Isso não é uma URL! Toda URL do Supabase precisa começar com <span className="font-semibold text-emerald-900">https://</span> (Ex: <i>https://xxxx.supabase.co</i>). Parece que você copiou o <b>Token Anon / Publishable Key</b> por engano neste campo.</div>
+                </div>
+              )}
+              <p className="text-[10px] text-amber-700 pt-1 leading-normal">
+                Para resolver: Vá no menu de configurações do AI Studio, atualize a variável <b>NEXT_PUBLIC_SUPABASE_URL</b> com a URL do seu projeto Supabase e recarregue a página.
+              </p>
+            </div>
+          )}
 
           {multiSessionAlert && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs flex gap-2">
@@ -2696,7 +2622,7 @@ export default function Home() {
                     <div className="p-4 bg-slate-50 border rounded-lg max-w-xl space-y-3" style={{ borderColor: panelBorderColor }}>
                        <div className="flex items-center justify-between">
                          <span className="text-xs font-bold text-slate-600">Status do Banco de Dados:</span>
-                         {supabaseMode === 'connected' ? (
+                         {supabaseMode === 'connected' && getSupabaseClient() ? (
                            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 font-sans">
                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span> Conectado & Sincronizado (Interno)
                            </span>
@@ -2707,7 +2633,19 @@ export default function Home() {
                          )}
                        </div>
 
-                       {supabaseMode === 'connected' && (
+                       {(!getSupabaseClient() && (supabaseUrlDiag || supabaseKeyDiag)) && (
+                         <div className="text-[11px] text-red-700 bg-red-50 p-2.5 rounded border border-red-100 space-y-1 my-2">
+                           <span className="font-bold block text-red-950">🚨 Erro de Autenticação / Conexão:</span>
+                           <p className="text-red-800">Os parâmetros de ambiente configurados para o Supabase parecem incorretos.</p>
+                           {supabaseUrlDiag && !supabaseUrlDiag.startsWith('http') && (
+                             <p className="font-mono text-[10px] bg-white p-1 border rounded mt-1 select-all text-red-600">
+                               URL Configurada: {supabaseUrlDiag} (Inválida, não inicia com https://)
+                             </p>
+                           )}
+                         </div>
+                       )}
+
+                       {supabaseMode === 'connected' && getSupabaseClient() && (
                          <div className="text-[11px] text-slate-500 space-y-1 pt-2 border-t font-mono">
                            <div><strong className="text-slate-600">Provedor Integrado:</strong> Supabase Cloud Server-to-Client</div>
                            <div><strong className="text-slate-600">Host URL:</strong> {supabaseUrl ? `${supabaseUrl.substring(0, 35)}...` : 'Processado Seguro'}</div>
