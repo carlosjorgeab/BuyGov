@@ -253,6 +253,7 @@ export default function Home() {
   const [supabaseMode, setSupabaseMode] = useState<'offline' | 'connected'>(
     (configUrl && configKey) ? 'connected' : 'offline'
   );
+  const [databaseSchemaAlert, setDatabaseSchemaAlert] = useState<boolean>(false);
   const [syncLogs, setSyncLogs] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -375,17 +376,22 @@ export default function Home() {
       setAtestados(INITIAL_CERTIFICATES);
       setDocumentos(INITIAL_DOCUMENTS);
       setPerfis(INITIAL_PROFILES);
+      setDatabaseSchemaAlert(false);
       setStateLoaded(true);
       return;
     }
 
     try {
       setIsSyncing(true);
+      setDatabaseSchemaAlert(false);
 
       const fetchTable = async (tableName: string) => {
         try {
           const res = await client.from(tableName).select('*');
-          if (res.error) console.error(`Erro ao consultar tabela ${tableName}:`, res.error);
+          if (res.error) {
+            console.error(`Erro ao consultar tabela ${tableName}:`, res.error);
+            return null;
+          }
           return res.data || null;
         } catch (err) {
           console.error(`Falha crítica ao acessar tabela ${tableName}:`, err);
@@ -410,6 +416,27 @@ export default function Home() {
         fetchTable('dicionario_parse_edital'),
         fetchTable('perfis_acesso')
       ]);
+
+      const hasLoadFailure = (
+        dbUsuarios === null ||
+        dbEmpresas === null ||
+        dbLicitacoes === null ||
+        dbAtestados === null ||
+        dbDocumentos === null ||
+        dbPerfis === null
+      );
+
+      if (hasLoadFailure) {
+        setDatabaseSchemaAlert(true);
+        setUsuarios([]);
+        setEmpresas([]);
+        setLicitacoes([]);
+        setAtestados([]);
+        setDocumentos([]);
+        setPerfis(INITIAL_PROFILES);
+        setStateLoaded(true);
+        return;
+      }
 
       // --- AUTO-SEED MECHANISM FOR NEW/CLEAN DATABASES ---
       // 1. Seed perfis_acesso first
@@ -541,20 +568,20 @@ export default function Home() {
           perfilId: u.perfil_id || u.perfilId || 'perfil-analista'
         })));
       } else {
-        setUsuarios(INITIAL_USERS);
+        setUsuarios([]);
       }
 
       if (dbEmpresas && Array.isArray(dbEmpresas)) setEmpresas(dbEmpresas as any);
-      else setEmpresas(INITIAL_COMPANIES);
+      else setEmpresas([]);
 
       if (dbLicitacoes && Array.isArray(dbLicitacoes)) setLicitacoes(dbLicitacoes as any);
-      else setLicitacoes(INITIAL_BIDS);
+      else setLicitacoes([]);
 
       if (dbAtestados && Array.isArray(dbAtestados)) setAtestados(dbAtestados as any);
-      else setAtestados(INITIAL_CERTIFICATES);
+      else setAtestados([]);
 
       if (dbDocumentos && Array.isArray(dbDocumentos)) setDocumentos(dbDocumentos as any);
-      else setDocumentos(INITIAL_DOCUMENTS);
+      else setDocumentos([]);
 
       if (dbDicionario && Array.isArray(dbDicionario)) setDicionario(dbDicionario as any);
 
@@ -625,14 +652,14 @@ export default function Home() {
           if (parsed && parsed.email) {
             setCurrentUser(parsed);
             setIsLoggedIn(true);
-            setSecondsRemaining(timeoutMinutes * 60);
           }
         } catch(e) {}
       }
     };
 
     checkAuth();
-  }, [loadSupabaseData, timeoutMinutes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Session timeout scheduler countdown
   useEffect(() => {
@@ -1728,9 +1755,6 @@ export default function Home() {
 
         {/* Action Buttons & Bottom section */}
         <div className="p-4 flex flex-col gap-2 mt-auto pb-6">
-          <button onClick={handleSupabaseSync} disabled={isSyncing} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-md flex items-center justify-center gap-2 transition shadow-sm disabled:opacity-50">
-            {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />} {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
-          </button>
           <button
             onClick={handleLogout}
             className="w-full mt-4 py-2 text-slate-400 hover:text-white text-sm font-semibold flex items-center justify-start px-2 gap-2 transition"
@@ -1771,6 +1795,20 @@ export default function Home() {
             </div>
           </div>
         </header>
+
+        {/* Schema Alert Warning Banner */}
+        {databaseSchemaAlert && (
+          <div className="mx-4 md:mx-8 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 flex shadow-sm items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 text-amber-600 mt-0.5" />
+            <div>
+              <p className="font-bold text-sm">Banco de Dados Conectado, mas Tabelas Inexistentes!</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Conectamos ao Supabase automaticamente com sucesso! No entanto, as tabelas necessárias não foram encontradas.
+                Para resolver isso, vá em <strong>Configurações (Ajustes)</strong> no menu lateral, copie o script de migração SQL e execute-o no Editor SQL do seu painel do Supabase.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* --- MAIN INNER CONTENT WRAPPER --- */}
         <div className="flex-grow overflow-y-auto px-4 md:px-8 py-6 w-full max-w-[1400px] mx-auto relative">
